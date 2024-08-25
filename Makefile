@@ -1,0 +1,30 @@
+BINARY_NAME=main
+#DOCKER_IMAGE_NAME=defibotgo
+#DOCKER_IMAGE_TAG=latest
+
+all: setup
+
+build:
+	go build -o $(BINARY_NAME) -v
+
+setup:
+	go mod tidy
+
+run: build
+	./$(BINARY_NAME)
+
+rundev:
+	go run main.go
+
+clean:
+	go clean
+	rm -f ./$(BINARY_NAME)
+
+lint:
+	go fmt ./...
+	go vet ./...
+
+#docker/build:
+#	docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
+
+.PHONY: $(shell grep -E '^([a-zA-Z_-]|\/)+:' $(MAKEFILE_LIST) | awk -F':' '{print $$2}' | sed 's/:.*//')
