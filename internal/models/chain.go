@@ -8,7 +8,12 @@ const (
 	Optimism Chain = "OPTIMISM"
 )
 
-// ChainToRpcUrlRead maps a Chain to its RPC URL
+// ChainToRpcUrlRead maps a Chain to its RPC URL for view functions
 var ChainToRpcUrlRead = map[Chain]string{
+	Optimism: "https://mainnet.optimism.io",
+}
+
+// ChainToRpcUrlWrite maps a Chain to its RPC URL for write functions
+var ChainToRpcUrlWrite = map[Chain]string{
 	Optimism: "https://mainnet.optimism.io",
 }
