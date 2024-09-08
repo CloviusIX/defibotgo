@@ -33,6 +33,13 @@ jobs:
         run: |
           make lint
 
+      - name: Set up environment variables tests
+        run : echo "WALLET_TEST_PRIVATE_KEY=${{ secrets.WALLET_TEST_PRIVATE_KEY }}" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          make test
+
       - name: Run build
         run: |
           make build

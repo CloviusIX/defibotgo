@@ -16,6 +16,9 @@ run: build
 rundev:
 	go run main.go
 
+test:
+	go test ./tests/... -v
+
 clean:
 	go clean
 	rm -f ./$(BINARY_NAME)
