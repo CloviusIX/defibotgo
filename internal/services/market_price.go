@@ -12,7 +12,7 @@ import (
 )
 
 var dexscreenerUrl = "https://api.dexscreener.com/latest/dex/pairs"
-var opWethVelo = "0x39eD27D101Aa4b7cE1cb4293B877954B8b5e14e5"
+var opWethVelo = "0x58e6433A6903886E440Ddf519eCC573c4046a6b2"
 
 type Pair struct {
 	PriceNative string `json:"priceNative"`

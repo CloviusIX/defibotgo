@@ -1,6 +1,9 @@
 package utils
 
-import "math/big"
+import (
+	"math/big"
+	"math/rand"
+)
 
 func ComputeDifference(value1 *big.Int, value2 *big.Int) float64 {
 	// Calculate the difference
@@ -15,4 +18,30 @@ func ComputeDifference(value1 *big.Int, value2 *big.Int) float64 {
 
 	// Multiply by 100 to convert to percentage
 	return percentageIncrease * 100
+}
+
+// ApplyPercentage adds a given percentage to the original *big.Int value.
+// For example, if the value is 1000 and percent is 25, the function returns 1250.
+func ApplyPercentage(value *big.Int, percent int64) *big.Int {
+	// Convert percent to a *big.Int
+	percentage := big.NewInt(percent)
+
+	// Calculate the additional percentage amount
+	increase := new(big.Int).Mul(value, percentage)
+	increase.Div(increase, big.NewInt(100))
+
+	// Add the increase to the original value
+	result := new(big.Int).Add(value, increase)
+
+	return result
+}
+
+// RandomNumberInRange generates a random int64 number between min and max (inclusive).
+func RandomNumberInRange(min, max int64) int64 {
+	if min >= max {
+		panic("min should be less than max")
+	}
+
+	// Generate a random number between min and max
+	return min + int64(rand.Intn(int(max-min+1)))
 }

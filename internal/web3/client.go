@@ -154,8 +154,8 @@ func EstimateGas(ethClient *ethclient.Client, msg ethereum.CallMsg) (uint64, err
 // Returns:
 //   - *big.Int: The maximum priority fee found among the transactions, or 0 if none are found.
 //   - error: An error if there was an issue fetching transactions or processing them.
-func GetPriorityFee(ethClient *ethclient.Client, senderAddress common.Address, contractAddress common.Address, txCount int, lastBlockN *big.Int, toBlock *big.Int) (*big.Int, error) {
-	transactions, err := getPastTransactions(ethClient, contractAddress, txCount, lastBlockN, toBlock)
+func GetPriorityFee(ethClient *ethclient.Client, senderAddress common.Address, contractAddress common.Address, lastBlockN *big.Int, toBlock *big.Int) (*big.Int, error) {
+	transactions, err := getPastTransactions(ethClient, contractAddress, lastBlockN, toBlock)
 	senderAddressStr := senderAddress.Hex()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last n events: %v", err)
@@ -189,7 +189,7 @@ func GetPriorityFee(ethClient *ethclient.Client, senderAddress common.Address, c
 // Returns:
 //   - []*types.Transaction: A slice of transactions matching the criteria, up to the specified txCount.
 //   - error: An error if there was an issue retrieving the transactions.
-func getPastTransactions(ethClient *ethclient.Client, contractAddress common.Address, txCount int, lastBlockN *big.Int, toBlock *big.Int) ([]*types.Transaction, error) {
+func getPastTransactions(ethClient *ethclient.Client, contractAddress common.Address, lastBlockN *big.Int, toBlock *big.Int) ([]*types.Transaction, error) {
 	toBlockResult := toBlock
 
 	if toBlockResult == nil {
@@ -221,7 +221,6 @@ func getPastTransactions(ethClient *ethclient.Client, contractAddress common.Add
 	var transactions []*types.Transaction
 
 	for i, _log := range logs {
-		// TODO Use tx_count
 		if i-1 >= 0 && _log.TxHash == logs[i-1].TxHash {
 			// skip redundant transactions
 			continue

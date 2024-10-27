@@ -192,17 +192,16 @@ func TestGetPriorityFee(t *testing.T) {
 
 func getPriorityFee(senderAddress common.Address, contractAddress common.Address, toBlock *big.Int) (*big.Int, error) {
 	ethClient, err := web3.BuildWeb3Client(chain, true)
-	lastBlockTo := big.NewInt(50)
-	txCount := 20
+	lastBlockN := big.NewInt(50)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to build web3 client: %v", err)
+		return nil, fmt.Errorf("failed to build web3 client: %v", err)
 	}
 
-	priorityFee, err := web3.GetPriorityFee(ethClient, senderAddress, contractAddress, txCount, lastBlockTo, toBlock)
+	priorityFee, err := web3.GetPriorityFee(ethClient, senderAddress, contractAddress, lastBlockN, toBlock)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get priority fee: %v", err)
+		return nil, fmt.Errorf("failed to get priority fee: %v", err)
 	}
 
 	return priorityFee, nil

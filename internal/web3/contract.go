@@ -36,6 +36,7 @@ func LoadAbi(abiStr string) (abi.ABI, error) {
 //
 // Returns:
 //   - *bind.BoundContract: The bound contract instance that allows interaction with the smart contract.
+//   - error: An error that occurred during ABI parsing, or nil if successful.
 func BuildContractInstance(client *ethclient.Client, contractAddress common.Address, abiStr string) (*bind.BoundContract, error) {
 	parsedAbi, err := LoadAbi(abiStr)
 	if err != nil {
