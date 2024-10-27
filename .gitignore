@@ -18,6 +18,7 @@
 go.work
 
 # env file
+.env
 .env.test
 
 # IDE specific files

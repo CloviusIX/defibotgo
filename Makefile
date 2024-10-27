@@ -5,7 +5,7 @@ BINARY_NAME=main
 all: setup
 
 build:
-	go build -o $(BINARY_NAME) -v
+	go build -o $(BINARY_NAME)
 
 setup:
 	go mod tidy
