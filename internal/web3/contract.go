@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// loadAbi parses a given ABI string and returns the parsed ABI or an error.
+// LoadAbi parses a given ABI string and returns the parsed ABI or an error.
 //
 // Parameters:
 //   - abiStr: The ABI string to be parsed.
@@ -17,7 +17,7 @@ import (
 // Returns:
 //   - abi.ABI: The parsed ABI structure.
 //   - error: An error that occurred during ABI parsing, or nil if successful.
-func loadAbi(abiStr string) (abi.ABI, error) {
+func LoadAbi(abiStr string) (abi.ABI, error) {
 	parsedAbi, err := abi.JSON(strings.NewReader(abiStr))
 
 	if err != nil {
@@ -36,13 +36,12 @@ func loadAbi(abiStr string) (abi.ABI, error) {
 //
 // Returns:
 //   - *bind.BoundContract: The bound contract instance that allows interaction with the smart contract.
-func BuildContractInstance(client *ethclient.Client, contractAddress string, abiStr string) (*bind.BoundContract, error) {
-	hexAddress := common.HexToAddress(contractAddress)
-	parsedAbi, err := loadAbi(abiStr)
+func BuildContractInstance(client *ethclient.Client, contractAddress common.Address, abiStr string) (*bind.BoundContract, error) {
+	parsedAbi, err := LoadAbi(abiStr)
 	if err != nil {
 		return nil, err
 	}
 
-	contract := bind.NewBoundContract(hexAddress, parsedAbi, client, client, client)
+	contract := bind.NewBoundContract(contractAddress, parsedAbi, client, client, client)
 	return contract, err
 }

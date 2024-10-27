@@ -73,18 +73,18 @@ func SendTransaction(ethClient *ethclient.Client, contract *bind.BoundContract, 
 	return tx, err
 }
 
-// EthCall calls a view function on a smart contract.
+// EthCall calls a view (read-only) function on a smart contract.
 //
 // Parameters:
-//   - contract: The smart contract to call the view function on.
-//   - functionName: Name of the view function to call.
+//   - contract: The smart contract instance to call the view function on.
+//   - functionName: The name of the view function to invoke.
 //   - callOpts: Options specifying the block number and context for the contract call.
 //   - params: Additional parameters to pass to the view function.
 //
 // Returns:
-//   - interface{}: The result of the view function call, which can be of various types depending on the contract's output.
+//   - big.int: The result of the view function call.
 //   - error: An error that occurred during the contract call, or nil if successful.
-func EthCall(contract *bind.BoundContract, functionName string, callOpts *bind.CallOpts, params ...interface{}) (interface{}, error) {
+func EthCall(contract *bind.BoundContract, functionName string, callOpts *bind.CallOpts, params ...interface{}) (*big.Int, error) {
 	var results []interface{}
 	err := contract.Call(callOpts, &results, functionName, params...)
 
@@ -97,17 +97,18 @@ func EthCall(contract *bind.BoundContract, functionName string, callOpts *bind.C
 			return output, nil
 		}
 		// Handle other potential types as needed
-		return result, nil
+		// We are not interested of having other result than big.int for now
 	}
 
-	return nil, nil
+	// Send an error if no valid result was found
+	return nil, fmt.Errorf("unexpected result type; expected *big.Int")
 }
 
 // GetBaseFeePerGas retrieves the base fee per gas for a specific block.
 //
 // Parameters:
-//   - ethClient: The client used to interact with the blockchain.
-//   - blockNumber: The block number for which to retrieve the base fee per gas.
+//   - ethClient: The Ethereum client instance used for blockchain interaction.
+//   - blockNumber: The block number for which the base fee per gas is retrieved.
 //
 // Returns:
 //   - *big.Int: The base fee per gas for the specified block.
@@ -121,16 +122,34 @@ func GetBaseFeePerGas(ethClient *ethclient.Client, blockNumber *big.Int) (*big.I
 	return header.BaseFee, nil
 }
 
-// GetPriorityFee calculates the maximum priority fee from past transactions for a given contract,
-// excluding transactions from a specified sender.
+// EstimateGas estimates the gas required to execute a specific Ethereum transaction.
 //
 // Parameters:
-//   - ethClient: The Ethereum client used to interact with the blockchain.
-//   - senderAddress: The address of the sender whose transactions should be excluded.
-//   - contractAddress: The address of the contract for which past transactions are retrieved.
-//   - txCount: The number of past transactions to fetch.
-//   - lastBlockN: The number of blocks to go back from the toBlock (e.g., 50 means start 50 blocks before toBlock).
-//   - toBlock: The block number up to which transactions should be fetched.
+//   - ethClient: The Ethereum client instance used to connect to the network.
+//   - msg: The CallMsg struct defining the transaction details, such as 'From', 'To', 'Gas', 'GasPrice', 'Value', and 'Data'
+//
+// Returns:
+//   - uint64: The estimated gas needed for the transaction execution.
+//   - error: An error if the gas estimation fails, or nil if successful.
+func EstimateGas(ethClient *ethclient.Client, msg ethereum.CallMsg) (uint64, error) {
+	estimateGas, err := ethClient.EstimateGas(context.Background(), msg)
+	if err != nil {
+		return 0, fmt.Errorf("failed to estimate gas estimation: %v", err)
+	}
+
+	return estimateGas, nil
+}
+
+// GetPriorityFee calculates the maximum priority fee among recent transactions
+// for a specified contract, excluding transactions from a given sender address.
+//
+// Parameters:
+//   - ethClient: The Ethereum client instance for blockchain interaction.
+//   - senderAddress: The Ethereum address of the sender whose transactions are to be excluded.
+//   - contractAddress: The contract's Ethereum address for which recent transactions are analyzed.
+//   - txCount: The number of past transactions to retrieve and analyze.
+//   - lastBlockN: Number of blocks before toBlock to start fetching transactions (e.g., 50 means start from 50 blocks before toBlock).
+//   - toBlock: The block number up to which transactions are considered.
 //
 // Returns:
 //   - *big.Int: The maximum priority fee found among the transactions, or 0 if none are found.
@@ -141,6 +160,7 @@ func GetPriorityFee(ethClient *ethclient.Client, senderAddress common.Address, c
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last n events: %v", err)
 	}
+
 	maxPriorityFee := big.NewInt(0)
 
 	for _, transaction := range transactions {
@@ -182,6 +202,10 @@ func getPastTransactions(ethClient *ethclient.Client, contractAddress common.Add
 		toBlockResult = big.NewInt(int64(latestBlock))
 	}
 
+	if lastBlockN == nil {
+		lastBlockN = big.NewInt(0) // Default to 0 blocks if lastBlockN is not provided
+	}
+
 	filterQuery := ethereum.FilterQuery{
 		FromBlock: new(big.Int).Sub(toBlockResult, lastBlockN),
 		ToBlock:   toBlockResult,
@@ -197,6 +221,7 @@ func getPastTransactions(ethClient *ethclient.Client, contractAddress common.Add
 	var transactions []*types.Transaction
 
 	for i, _log := range logs {
+		// TODO Use tx_count
 		if i-1 >= 0 && _log.TxHash == logs[i-1].TxHash {
 			// skip redundant transactions
 			continue
