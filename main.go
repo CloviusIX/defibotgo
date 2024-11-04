@@ -1,15 +1,14 @@
 package main
 
 import (
+	"defibotgo/internal/config"
 	"defibotgo/internal/models"
 	"defibotgo/internal/protocols/tarot"
 	"defibotgo/internal/web3"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/joho/godotenv"
 	"log"
 	"math/big"
-	"os"
 )
 
 func main() {
@@ -22,13 +21,8 @@ func main() {
 	}
 	log.Printf("Successfully built eth client on %s %p", chain, ethClient)
 
-	err = godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	walletPrivateKey := os.Getenv("ACCOUNT_PRIVATE_KEY_TAROT")
-	senderWallet := os.Getenv("ACCOUNT_SENDER_ADDRESS_TAROT")
+	walletPrivateKey := config.GetSecret(config.WalletTarotKeyOne)
+	senderWallet := config.GetSecret(config.WalletTarotAddressOne)
 
 	if walletPrivateKey == "" {
 		log.Fatalf("wallet test private key not found")

@@ -17,7 +17,7 @@ rundev:
 	go run main.go
 
 test:
-	go test ./tests/... -v
+	APP_ENV=test go test ./tests/... -v
 
 clean:
 	go clean

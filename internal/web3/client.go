@@ -3,6 +3,7 @@ package web3
 import (
 	"context"
 	"crypto/ecdsa"
+	"defibotgo/internal/config"
 	"defibotgo/internal/models"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -23,10 +24,13 @@ import (
 //   - *ethclient.Client: The initialized Ethereum client.
 //   - error: An error that occurred during the connection attempt, or nil if successful.
 func BuildWeb3Client(chain models.Chain, asReader bool) (*ethclient.Client, error) {
-	rpcUrl := models.ChainToRpcUrlWrite[chain]
+	rpcUrl := config.ChainToRpcUrlWrite[chain]
+	if rpcUrl == "" {
+		return nil, fmt.Errorf("rpc url is empty")
+	}
 
 	if asReader {
-		rpcUrl = models.ChainToRpcUrlRead[chain]
+		rpcUrl = config.ChainToRpcUrlRead[chain]
 	}
 
 	ethClient, err := ethclient.Dial(rpcUrl)
