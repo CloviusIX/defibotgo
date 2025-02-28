@@ -11,10 +11,10 @@ setup:
 	go mod tidy
 
 run: build
-	./$(BINARY_NAME)
+	APP_ENV=development ./$(BINARY_NAME) -chain=$(CHAIN)
 
 rundev:
-	go run main.go
+	APP_ENV=development go run main.go -chain=$(CHAIN)
 
 test:
 	APP_ENV=test go test ./tests/... -v
@@ -30,7 +30,8 @@ lint:
 docker/build:
 	docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .
 
+# update -chain flag as you want
 docker/run:
-	docker run -d --env-file .env --rm --name $(DOCKER_IMAGE_NAME) $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
+	docker run -d --env-file .env --rm --name $(DOCKER_IMAGE_NAME) $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) -chain=base
 
 .PHONY: $(shell grep -E '^([a-zA-Z_-]|\/)+:' $(MAKEFILE_LIST) | awk -F':' '{print $$2}' | sed 's/:.*//')
