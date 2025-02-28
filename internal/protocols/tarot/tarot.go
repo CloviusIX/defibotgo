@@ -13,7 +13,6 @@ import (
 	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
@@ -24,14 +23,6 @@ import (
 
 type WeiApiFunc func() (*big.Int, error)
 
-type TarotOpts struct {
-	Sender           common.Address
-	PriorityFee      *big.Int
-	BlockRangeFilter *big.Int
-	ContractLender   common.Address
-	ContractGauge    common.Address
-}
-
 var callOpts = bind.CallOpts{
 	Pending:     true,
 	BlockNumber: nil,
@@ -40,7 +31,7 @@ var callOpts = bind.CallOpts{
 
 var reinvestFunctionName = "reinvest"
 
-func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, chain models.Chain, opts *TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
+func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 50,  // 10x the number of items we expect to store
 		MaxCost:     320, // Approx. 64 bytes per *big.Int, 5 keys in total
@@ -53,7 +44,7 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, chain m
 	contractLender, err := web3.BuildContractInstance(ethClient, opts.ContractLender, abi.CONTRACT_ABI_LENDER)
 	if err != nil {
 		//return nil, fmt.Errorf("error building tarot contract lender instance on %s: %v", chain, err)
-		log.Fatalf("error building tarot contract lender instance on %s: %v", chain, err)
+		log.Fatalf("error building tarot contract lender instance on %s: %v", opts.Chain, err)
 	}
 
 	contractGauge, err := web3.BuildContractInstance(ethClient, opts.ContractGauge, abi.CONTRACT_ABI_GAUGE)
@@ -64,12 +55,12 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, chain m
 
 	abiJson, err := web3.LoadAbi(abi.CONTRACT_ABI_LENDER)
 	if err != nil {
-		log.Fatalf("error loading Tarot abi on %s: %v", chain, err)
+		log.Fatalf("error loading Tarot abi on %s: %v", opts.Chain, err)
 	}
 
 	data, err := abiJson.Pack(reinvestFunctionName)
 	if err != nil {
-		log.Fatalf("failed to pack Tarot abi on %s: %v", chain, err)
+		log.Fatalf("failed to pack Tarot abi on %s: %v", opts.Chain, err)
 	}
 
 	// Create a message to simulate the transaction
@@ -82,9 +73,9 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, chain m
 	log.Printf("calling contract lender on %s", opts.ContractLender.Hex())
 
 	for {
-		isWorth, gasOpts, err := getTransactionGasFees(ethClient, chain, contractGauge, callMsg, opts, cache)
+		isWorth, gasOpts, err := getTransactionGasFees(ethClient, contractGauge, callMsg, opts, cache)
 		if err != nil {
-			log.Printf("error getting gas on Tarot %s: %v", chain, err)
+			log.Printf("error getting gas on Tarot %s: %v", opts.Chain, err)
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
@@ -92,7 +83,7 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, chain m
 		if isWorth {
 			tx, err := web3.SendTransaction(ethClientWriter, contractLender, reinvestFunctionName, gasOpts, walletPrivateKey)
 			if err != nil {
-				log.Printf("failed to send transaction on Tarot %s: %v", chain, err)
+				log.Printf("failed to send transaction on Tarot %s: %v", opts.Chain, err)
 				time.Sleep(utils.RetryErrorSleep)
 				continue
 			}
@@ -104,20 +95,21 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, chain m
 			cancel() // Immediately call cancel to free up resources
 
 			if err != nil {
-				log.Printf("failed to wait for receipt on Tarot %s: %v", chain, err)
+				log.Printf("failed to wait for receipt on Tarot %s: %v", opts.Chain, err)
+				continue
 			}
 
 			if receipt.Status == types.ReceiptStatusSuccessful {
 				log.Println("Successfully sent transaction on Tarot ", tx.Hash().Hex())
 			} else {
-				log.Printf("failed to send transaction on Tarot %s: %v", chain, err)
+				log.Printf("failed to send transaction on Tarot %s: %v", opts.Chain, err)
 			}
 		}
 		time.Sleep(utils.RetryMainSleep)
 	}
 }
 
-func getTransactionGasFees(ethClient *ethclient.Client, chain models.Chain, contractGauge *bind.BoundContract, msg ethereum.CallMsg, opts *TarotOpts, cache *ristretto.Cache) (bool, *web3.GasOpts, error) {
+func getTransactionGasFees(ethClient *ethclient.Client, contractGauge *bind.BoundContract, msg ethereum.CallMsg, opts *models.TarotOpts, cache *ristretto.Cache) (bool, *web3.GasOpts, error) {
 	var wg sync.WaitGroup
 	wg.Add(5)
 
@@ -132,7 +124,7 @@ func getTransactionGasFees(ethClient *ethclient.Client, chain models.Chain, cont
 	go web3Async.GetBaseFeePerGasAsync(ethClient, callOpts.BlockNumber, cache, "1", baseFeePerGasChan, &wg)
 	go web3Async.EstimateGasAsync(ethClient, msg, cache, "2", estimateGasChan, &wg)
 	go web3Async.GetPriorityFeeAsync(ethClient, opts.Sender, opts.ContractLender, big.NewInt(50), callOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
-	go asyncservices.GetPoolPriceAsync(chain, cache, "4", rewardPairValueChan, &wg)
+	go asyncservices.GetPoolPriceAsync(opts.Chain, cache, "4", rewardPairValueChan, &wg)
 
 	// Wait for goroutines and close the channel
 	go func() {
@@ -160,7 +152,6 @@ func getTransactionGasFees(ethClient *ethclient.Client, chain models.Chain, cont
 		return false, nil, fmt.Errorf("estimated gas limit is too low => skip")
 	}
 
-	//The gas limit function could be called from the parent ?
 	saveGasLimit := estimateGasLimit.Value + (estimateGasLimit.Value*30)/100
 
 	// Set new priority fee depending on competitors
@@ -171,6 +162,7 @@ func getTransactionGasFees(ethClient *ethclient.Client, chain models.Chain, cont
 
 	newPriorityFee_ := priorityFee.Value
 	if opts.PriorityFee.Cmp(priorityFee.Value) == 1 {
+		// Use the highest priority fee for the transaction
 		newPriorityFee_ = opts.PriorityFee
 	}
 

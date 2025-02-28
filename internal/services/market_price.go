@@ -13,6 +13,7 @@ import (
 
 var dexscreenerUrl = "https://api.dexscreener.com/latest/dex/pairs"
 var opWethVelo = "0x58e6433A6903886E440Ddf519eCC573c4046a6b2"
+var opWethAero = "0x7f670f78B17dEC44d5Ef68a48740b6f8849cc2e6"
 
 type Pair struct {
 	PriceNative string `json:"priceNative"`
@@ -22,8 +23,18 @@ type DexScreenerResponse struct {
 	Pairs []Pair `json:"pairs"`
 }
 
+func getPairAddress(chain models.Chain) string {
+	switch chain {
+	case models.Base:
+		return opWethAero
+	default:
+		return opWethVelo
+	}
+}
+
 func GetPoolPrice(chain models.Chain) (*big.Int, error) {
-	url := fmt.Sprintf("%s/%s/%s", dexscreenerUrl, strings.ToLower(string(chain)), opWethVelo)
+	pairAddress := getPairAddress(chain)
+	url := fmt.Sprintf("%s/%s/%s", dexscreenerUrl, strings.ToLower(string(chain)), pairAddress)
 	response, err := get(url)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get response %v", err)
