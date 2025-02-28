@@ -6,6 +6,7 @@ import (
 	"defibotgo/internal/models"
 	"defibotgo/internal/web3"
 	"fmt"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -17,8 +18,11 @@ import (
 	"testing"
 )
 
+var testWalletAddress = common.HexToAddress("0x19719b8d58376F3480Bc98e91eCcA64640f6D520")
 var contractAbiTest = `[{"inputs":[],"name":"get","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_value","type":"uint256"}],"name":"set","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
 var testnetRpcUrl = "https://sepolia.optimism.io"
+var contractTestAddress = common.HexToAddress("0x39Df60Fcb52Bf97dFf6Fb5bDa969A131Eb99bB80")
+var testWriteFunction = "set"
 
 var chain = models.Optimism
 var blockNumber = big.NewInt(124626577)
@@ -29,8 +33,6 @@ var callOpts = bind.CallOpts{
 }
 
 func TestSendTransaction(t *testing.T) {
-	contractAddress := "0x39Df60Fcb52Bf97dFf6Fb5bDa969A131Eb99bB80"
-	functionName := "set"
 	functionParam := big.NewInt(1)
 	gasLimit := uint64(1090381)
 	priorityFee := big.NewInt(5275)
@@ -57,13 +59,13 @@ func TestSendTransaction(t *testing.T) {
 		t.Fatalf("Failed to get base fee: %v", err)
 	}
 
-	contract, err := web3.BuildContractInstance(ethClient, contractAddress, contractAbiTest)
+	contract, err := web3.BuildContractInstance(ethClient, contractTestAddress, contractAbiTest)
 	if err != nil {
 		t.Fatalf("Failed to build contract: %v", err)
 	}
 
 	gasOpts := web3.BuildTransactionFeeArgs(baseFee, priorityFee, gasLimit)
-	tx, err := web3.SendTransaction(ethClient, contract, functionName, gasOpts, testPrivateKey, functionParam)
+	tx, err := web3.SendTransaction(ethClient, contract, testWriteFunction, gasOpts, testPrivateKey, functionParam)
 
 	if tx == nil || err != nil {
 		t.Fatalf("Failed to send transaction: %v", err)
@@ -76,7 +78,7 @@ func TestEthCallGetTarotEarnedFn(t *testing.T) {
 
 	abiStr := abi.CONTRACT_ABI_GAUGE
 	contractAddressLender := common.HexToAddress("0x3b749be6ca33f27e2837138ede69f8c6c53f9207")
-	contractAddressGauge := "0x1239c54d9fd91e6ecec8eaad80df0fed43c47673"
+	contractAddressGauge := common.HexToAddress("0x1239c54d9fd91e6ecec8eaad80df0fed43c47673")
 	functionName := "earned"
 
 	ethClient, err := web3.BuildWeb3Client(chain, true)
@@ -91,19 +93,13 @@ func TestEthCallGetTarotEarnedFn(t *testing.T) {
 	}
 
 	result, err := web3.EthCall(contract, functionName, &callOpts, contractAddressLender)
-
 	if err != nil {
 		t.Fatalf("EthCall function %s failed: %v", functionName, err)
 	}
 
-	if resultBigInt, ok := result.(*big.Int); ok {
-		if resultBigInt.Cmp(expected) != 0 {
-			t.Fatalf("EthCall function %s failed, expected %d, got %d", functionName, expected, resultBigInt)
-		}
-	} else {
-		t.Fatalf("EthCall function %s returned a non-big.Int result: %v", functionName, result)
+	if result.Cmp(expected) != 0 {
+		t.Fatalf("EthCall function %s failed, expected %d, got %d", functionName, expected, result)
 	}
-
 }
 
 func TestGetBaseFeePerGas(t *testing.T) {
@@ -124,6 +120,42 @@ func TestGetBaseFeePerGas(t *testing.T) {
 
 	if baseFeePerGasByBlockNumber.Cmp(baseFeePerGasLatest) == 0 && baseFeePerGasByBlockNumber.Cmp(big.NewInt(0)) < 1 && baseFeePerGasLatest.Cmp(big.NewInt(0)) < 1 {
 		t.Fatalf("GetBaseFeePerGas failed, got by block number %v and from the latest %v", baseFeePerGasByBlockNumber, baseFeePerGasLatest)
+	}
+}
+func TestEstimateGas(t *testing.T) {
+	fromAddress := testWalletAddress
+	toAddress := contractTestAddress
+	ethClient, err := ethclient.Dial(testnetRpcUrl)
+	if err != nil {
+		t.Fatalf("Failed to build web3 client: %v", err)
+	}
+
+	abiJson, err := web3.LoadAbi(contractAbiTest)
+	if err != nil {
+		t.Fatalf("Failed to load abi: %v", err)
+	}
+
+	data, err := abiJson.Pack(testWriteFunction, big.NewInt(1))
+	if err != nil {
+		t.Fatalf("Failed to pack abi: %v", err)
+	}
+
+	// Create a message to simulate the transaction
+	msg := ethereum.CallMsg{
+		From:  fromAddress,
+		To:    &toAddress,
+		Data:  data, // ABI-encoded function call data
+		Value: big.NewInt(0),
+	}
+
+	estimateGas, err := web3.EstimateGas(ethClient, msg)
+
+	if err != nil {
+		t.Fatalf("Failed to estimate gas: %v", err)
+	}
+
+	if estimateGas == 0 {
+		t.Fatalf("Failed to estimate gas, expected non-zero value")
 	}
 }
 
@@ -160,17 +192,16 @@ func TestGetPriorityFee(t *testing.T) {
 
 func getPriorityFee(senderAddress common.Address, contractAddress common.Address, toBlock *big.Int) (*big.Int, error) {
 	ethClient, err := web3.BuildWeb3Client(chain, true)
-	lastBlockTo := big.NewInt(50)
-	txCount := 20
+	lastBlockN := big.NewInt(50)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to build web3 client: %v", err)
+		return nil, fmt.Errorf("failed to build web3 client: %v", err)
 	}
 
-	priorityFee, err := web3.GetPriorityFee(ethClient, senderAddress, contractAddress, txCount, lastBlockTo, toBlock)
+	priorityFee, err := web3.GetPriorityFee(ethClient, senderAddress, contractAddress, lastBlockN, toBlock)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get priority fee: %v", err)
+		return nil, fmt.Errorf("failed to get priority fee: %v", err)
 	}
 
 	return priorityFee, nil
