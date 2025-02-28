@@ -3,6 +3,7 @@ package web3
 import (
 	"context"
 	"defibotgo/internal/abi"
+	"defibotgo/internal/config"
 	"defibotgo/internal/models"
 	"defibotgo/internal/web3"
 	"fmt"
@@ -11,10 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/joho/godotenv"
 	"log"
 	"math/big"
-	"os"
 	"testing"
 )
 
@@ -36,9 +35,7 @@ func TestSendTransaction(t *testing.T) {
 	functionParam := big.NewInt(1)
 	gasLimit := uint64(1090381)
 	priorityFee := big.NewInt(5275)
-
-	err := godotenv.Load("../../.env.test")
-	walletPrivateKey := os.Getenv("WALLET_TEST_PRIVATE_KEY")
+	walletPrivateKey := config.GetSecret(config.WalletTestPrivateKey)
 
 	if walletPrivateKey == "" {
 		log.Fatalf("wallet test private key not found")

@@ -11,10 +11,13 @@ import (
 type SecretKey int
 
 const (
-	RpcNodeReadKey SecretKey = iota
-	RpcNodeWriteKey
+	RpcNodeBaseReadKey SecretKey = iota
+	RpcNodeBaseWriteKey
+	RpcNodeOptimismReadKey
+	RpcNodeOptimismWriteKey
 	WalletTarotKeyOne
 	WalletTarotAddressOne
+	WalletTestPrivateKey
 )
 
 var (
@@ -31,15 +34,20 @@ func loadSecrets() {
 	switch env {
 	case "test":
 		secrets = map[SecretKey]string{
-			RpcNodeReadKey:  getEnvOrFatal("NODE_RPC_READ"),
-			RpcNodeWriteKey: getEnvOrFatal("NODE_RPC_WRITE"),
+			RpcNodeBaseReadKey:      getEnvOrFatal("RPC_NODE_BASE_READ"),
+			RpcNodeBaseWriteKey:     getEnvOrFatal("RPC_NODE_BASE_WRITE"),
+			RpcNodeOptimismReadKey:  getEnvOrFatal("RPC_NODE_OPTIMISM_READ"),
+			RpcNodeOptimismWriteKey: getEnvOrFatal("RPC_NODE_OPTIMISM_WRITE"),
+			WalletTestPrivateKey:    getEnvOrFatal("WALLET_TEST_PRIVATE_KEY"),
 		}
 	default:
 		secrets = map[SecretKey]string{
-			RpcNodeReadKey:        getEnvOrFatal("NODE_RPC_READ"),
-			RpcNodeWriteKey:       getEnvOrFatal("NODE_RPC_WRITE"),
-			WalletTarotKeyOne:     getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_ONE"),
-			WalletTarotAddressOne: getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE"),
+			RpcNodeBaseReadKey:      getEnvOrFatal("RPC_NODE_BASE_READ"),
+			RpcNodeBaseWriteKey:     getEnvOrFatal("RPC_NODE_BASE_WRITE"),
+			RpcNodeOptimismReadKey:  getEnvOrFatal("RPC_NODE_OPTIMISM_READ"),
+			RpcNodeOptimismWriteKey: getEnvOrFatal("RPC_NODE_OPTIMISM_WRITE"),
+			WalletTarotKeyOne:       getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_ONE_0XB8"),
+			WalletTarotAddressOne:   getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE_0XB8"),
 		}
 	}
 }
