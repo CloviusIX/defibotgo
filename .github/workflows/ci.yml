@@ -34,7 +34,10 @@ jobs:
           make lint
 
       - name: Set up environment variables tests
-        run : echo "WALLET_TEST_PRIVATE_KEY=${{ secrets.WALLET_TEST_PRIVATE_KEY }}" >> $GITHUB_ENV
+        run : |
+          echo "WALLET_TEST_PRIVATE_KEY=${{ secrets.WALLET_TEST_PRIVATE_KEY }}" >> $GITHUB_ENV
+          echo "NODE_RPC_READ=${{ secrets.NODE_RPC_READ }}" >> $GITHUB_ENV
+          echo "NODE_RPC_WRITE=${{ secrets.NODE_RPC_WRITE }}" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
