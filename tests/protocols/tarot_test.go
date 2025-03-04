@@ -1,18 +1,11 @@
 package protocols
 
 import (
-	"context"
-	"defibotgo/internal/abi"
 	"defibotgo/internal/config"
 	"defibotgo/internal/models"
 	"defibotgo/internal/protocols/tarot"
 	"defibotgo/internal/utils"
-	"defibotgo/internal/web3"
-	"github.com/dgraph-io/ristretto"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"log"
 	"math/big"
 	"testing"
 )
@@ -32,20 +25,13 @@ func TestComputeReward(t *testing.T) {
 
 func TestGetTransactionGasFees(t *testing.T) {
 	chain := models.Base
-	reinvestFunctionName := "reinvest"
-	priorityFeeIncreasePercent := 5
-	transactionFeeExpected := big.NewInt(1293073197052)
+	priorityFeeIncreasePercent := 0
+	gasLimitExtraPercent := uint64(0)
 
-	vaultPendingRewardChan := make(chan models.WeiResult, 1)
-	baseFeePerGasChan := make(chan models.WeiResult, 1)
-	estimateGasChan := make(chan models.GasLimitResult, 1)
-	rewardPairValueChan := make(chan models.WeiResult, 1)
-	priorityFeeChan := make(chan models.WeiResult, 1)
-
-	ethClient, err := web3.BuildWeb3Client(chain, true)
-	if err != nil {
-		log.Fatalf("Error building eth cient: %s", err)
-	}
+	transactionFeeExpected := big.NewInt(994396562432)
+	gasLimitExpected := uint64(426244)
+	gasFeeExpected := big.NewInt(2332928)
+	gasTipExpected := big.NewInt(428970)
 
 	protocolOpts := &models.TarotOpts{
 		Chain:            chain,
@@ -57,69 +43,42 @@ func TestGetTransactionGasFees(t *testing.T) {
 	}
 
 	//https://basescan.org/tx/0x93efd0f572de355f5cd34120af45360cc1d22765df8ae7fe91528ff2801b210b
-	blockOpts := &bind.CallOpts{
-		Pending:     false,
-		BlockNumber: big.NewInt(27149476),
-		Context:     context.Background(),
-	}
+	tarotCalculationOpts := &tarot.TarotCalculationOpts{}
+	tarotCalculationOpts.VaultPendingRewardValue = big.NewInt(276513852697572252)
+	tarotCalculationOpts.RewardPairValue = big.NewInt(269300000000000)
+	tarotCalculationOpts.BaseFeeValue = big.NewInt(1903958)
+	tarotCalculationOpts.EstimateGasLimitValue = 426244
+	tarotCalculationOpts.PriorityFeeValue = big.NewInt(428970)
 
-	contractGauge, err := web3.BuildContractInstance(ethClient, protocolOpts.ContractGauge, abi.CONTRACT_ABI_GAUGE)
-	if err != nil {
-		log.Fatalf("error building tarot contract gauge instance on %s: %v", protocolOpts.ContractGauge, err)
-	}
-
-	abiJson, err := web3.LoadAbi(abi.CONTRACT_ABI_LENDER)
-	if err != nil {
-		log.Fatalf("error loading Tarot abi on %s: %v", protocolOpts.Chain, err)
-	}
-
-	data, err := abiJson.Pack(reinvestFunctionName)
-	if err != nil {
-		log.Fatalf("failed to pack Tarot abi on %s: %v", protocolOpts.Chain, err)
-	}
-
-	// Create a message to simulate the transaction
-	callMsg := ethereum.CallMsg{
-		From:  protocolOpts.Sender,
-		To:    &protocolOpts.ContractLender,
-		Data:  data, // ABI-encoded function call data
-		Value: big.NewInt(0),
-	}
-	log.Printf("calling contract lender on %s", protocolOpts.ContractLender.Hex())
-
-	cache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 50,  // 10x the number of items we expect to store
-		MaxCost:     320, // Approx. 64 bytes per *big.Int, 5 keys in total
-		BufferItems: 64,  // Recommended size for eviction buffer
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	_, gasOpts, err := tarot.GetTransactionGasFees(
-		ethClient,
-		contractGauge,
-		callMsg,
+	isWorth, gasOpts, err := tarot.GetTransactionGasFees(
 		protocolOpts,
-		blockOpts,
+		tarotCalculationOpts,
 		priorityFeeIncreasePercent,
-		cache,
-		vaultPendingRewardChan,
-		baseFeePerGasChan,
-		estimateGasChan,
-		rewardPairValueChan,
-		priorityFeeChan,
+		gasLimitExtraPercent,
 	)
 
 	if err != nil {
 		t.Fatalf("Error getting protocol gas fees: %v", err)
 	}
+
+	if !isWorth {
+		t.Fatalf("the transaction is not worthy")
+	}
+
 	if gasOpts.TransactionFee.Cmp(transactionFeeExpected) != 0 {
 		t.Fatalf("the transaction fee is incorrect: expecting %v got %v", transactionFeeExpected, gasOpts.TransactionFee)
 	}
 
-	if gasOpts.GasTipCap.Cmp(big.NewInt(461678)) != 0 {
+	if gasOpts.GasLimit != gasLimitExpected {
+		t.Fatalf("the gas limit is incorrect: expecting %v got %v", gasLimitExpected, gasOpts.GasLimit)
+	}
+
+	if gasOpts.GasFeeCap.Cmp(gasFeeExpected) != 0 {
+		t.Fatalf("the gas fee is incorrect: expecting %v got %v", gasFeeExpected, gasOpts.GasFeeCap)
+	}
+
+	if gasOpts.GasTipCap.Cmp(gasTipExpected) != 0 {
 		t.Fatalf("the priority fee is incrorrect: expecting %v got %v", big.NewInt(461678), gasOpts.GasTipCap)
 	}
-	log.Printf("gas fee is %v", gasOpts)
+
 }

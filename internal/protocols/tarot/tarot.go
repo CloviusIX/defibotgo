@@ -24,12 +24,31 @@ import (
 
 type WeiApiFunc func() (*big.Int, error)
 
+type TarotCalculationOpts struct {
+	VaultPendingReward models.WeiResult
+	BaseFeePerGas      models.WeiResult
+	EstimateGasLimit   models.GasLimitResult
+	RewardPair         models.WeiResult
+	PriorityFee        models.WeiResult
+
+	// Cached fields for direct access (populated after error checking)
+	VaultPendingRewardValue *big.Int
+	BaseFeeValue            *big.Int
+	EstimateGasLimitValue   uint64
+	RewardPairValue         *big.Int
+	PriorityFeeValue        *big.Int
+}
+
 var (
-	reinvestFunctionName = "reinvest"
-	zeroValue            = big.NewInt(0)
+	reinvestFunctionName    = "reinvest"
+	zeroValue               = big.NewInt(0)
+	transactionsBlockRange  = big.NewInt(50)
+	gasLimitExtraPercent    = uint64(30)
+	gasLimitUsedExpectedMin = uint64(100000)
+	reinvestFee, _          = new(big.Int).SetString("20000000000000000", 10) // 0.02 * 1e18 (which is 2e16)
 )
 
-func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
+func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOtps *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 50,  // 10x the number of items we expect to store
 		MaxCost:     320, // Approx. 64 bytes per *big.Int, 5 keys in total
@@ -46,24 +65,24 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 	rewardPairValueChan := make(chan models.WeiResult, 1)
 	priorityFeeChan := make(chan models.WeiResult, 1)
 
-	contractLender, err := web3.BuildContractInstance(ethClient, opts.ContractLender, abi.CONTRACT_ABI_LENDER)
+	contractLender, err := web3.BuildContractInstance(ethClient, tarotOtps.ContractLender, abi.CONTRACT_ABI_LENDER)
 	if err != nil {
-		log.Fatalf("error building tarot contract lender instance on %s: %v", opts.Chain, err)
+		log.Fatalf("error building tarot contract lender instance on %s: %v", tarotOtps.Chain, err)
 	}
 
-	contractGauge, err := web3.BuildContractInstance(ethClient, opts.ContractGauge, abi.CONTRACT_ABI_GAUGE)
+	contractGauge, err := web3.BuildContractInstance(ethClient, tarotOtps.ContractGauge, abi.CONTRACT_ABI_GAUGE)
 	if err != nil {
-		log.Fatalf("error building tarot contract gauge instance on %s: %v", opts.ContractGauge, err)
+		log.Fatalf("error building tarot contract gauge instance on %s: %v", tarotOtps.ContractGauge, err)
 	}
 
 	abiJson, err := web3.LoadAbi(abi.CONTRACT_ABI_LENDER)
 	if err != nil {
-		log.Fatalf("error loading Tarot abi on %s: %v", opts.Chain, err)
+		log.Fatalf("error loading Tarot abi on %s: %v", tarotOtps.Chain, err)
 	}
 
 	data, err := abiJson.Pack(reinvestFunctionName)
 	if err != nil {
-		log.Fatalf("failed to pack Tarot abi on %s: %v", opts.Chain, err)
+		log.Fatalf("failed to pack Tarot abi on %s: %v", tarotOtps.Chain, err)
 	}
 
 	callOpts := &bind.CallOpts{
@@ -74,18 +93,50 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 
 	// Create a message to simulate the transaction
 	callMsg := ethereum.CallMsg{
-		From:  opts.Sender,
-		To:    &opts.ContractLender,
+		From:  tarotOtps.Sender,
+		To:    &tarotOtps.ContractLender,
 		Data:  data, // ABI-encoded function call data
 		Value: zeroValue,
 	}
-	log.Printf("calling contract lender on %s", opts.ContractLender.Hex())
+	log.Printf("calling contract lender on %s", tarotOtps.ContractLender.Hex())
 
 	for {
-		priorityFeeIncreasePercent := utils.RandomNumberInRange(20, 25)
-		isWorth, gasOpts, err := GetTransactionGasFees(ethClient, contractGauge, callMsg, opts, callOpts, priorityFeeIncreasePercent, cache, vaultPendingRewardChan, baseFeePerGasChan, estimateGasChan, priorityFeeChan, rewardPairValueChan)
+		// Keep the code in a block to avoid overhead from additional function calls (optimizing execution time)
+		tarotCalculationOpts := &TarotCalculationOpts{}
+		var wg sync.WaitGroup
+		wg.Add(5)
+
+		// Call web3 api asynchronously
+		go web3Async.EthCallAsync(contractGauge, "earned", callOpts, vaultPendingRewardChan, &wg, tarotOtps.ContractLender)
+		go web3Async.GetBaseFeePerGasAsync(ethClient, callOpts.BlockNumber, cache, "1", baseFeePerGasChan, &wg)
+		go web3Async.EstimateGasAsync(ethClient, callMsg, cache, "2", estimateGasChan, &wg)
+		go web3Async.GetPriorityFeeAsync(ethClient, tarotOtps.Sender, tarotOtps.ContractLender, transactionsBlockRange, callOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
+		go asyncservices.GetPoolPriceAsync(tarotOtps.Chain, cache, "4", rewardPairValueChan, &wg)
+
+		// Wait for goroutines
+		wg.Wait()
+
+		// Get the channels result
+		tarotCalculationOpts.VaultPendingReward = <-vaultPendingRewardChan
+		tarotCalculationOpts.BaseFeePerGas = <-baseFeePerGasChan
+		tarotCalculationOpts.EstimateGasLimit = <-estimateGasChan
+		tarotCalculationOpts.RewardPair = <-rewardPairValueChan
+		tarotCalculationOpts.PriorityFee = <-priorityFeeChan
+
+		if tarotCalculationOpts.VaultPendingReward.Err != nil || tarotCalculationOpts.BaseFeePerGas.Err != nil || tarotCalculationOpts.EstimateGasLimit.Err != nil || tarotCalculationOpts.RewardPair.Err != nil || tarotCalculationOpts.PriorityFee.Err != nil {
+			log.Printf("error getting gas limit or reward pair value\nPending reward: %s\n:Base Fee: %s\nEstimate gas: %s\nReward Pair value: %s\nPriority fee: %s", tarotCalculationOpts.VaultPendingReward.Err, tarotCalculationOpts.BaseFeePerGas.Err, tarotCalculationOpts.EstimateGasLimit.Err, tarotCalculationOpts.RewardPair.Err, tarotCalculationOpts.PriorityFee.Err)
+		}
+
+		tarotCalculationOpts.VaultPendingRewardValue = tarotCalculationOpts.VaultPendingReward.Value
+		tarotCalculationOpts.BaseFeeValue = tarotCalculationOpts.BaseFeePerGas.Value
+		tarotCalculationOpts.EstimateGasLimitValue = tarotCalculationOpts.EstimateGasLimit.Value
+		tarotCalculationOpts.PriorityFeeValue = tarotCalculationOpts.PriorityFee.Value
+		tarotCalculationOpts.RewardPairValue = tarotCalculationOpts.RewardPair.Value
+
+		priorityFeeExtraPercent := utils.RandomNumberInRange(20, 25)
+		isWorth, gasOpts, err := GetTransactionGasFees(tarotOtps, tarotCalculationOpts, priorityFeeExtraPercent, gasLimitExtraPercent)
 		if err != nil {
-			log.Printf("error getting gas on Tarot %s: %v", opts.Chain, err)
+			log.Printf("error getting gas on Tarot %s: %v", tarotOtps.Chain, err)
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
@@ -93,7 +144,18 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 		if isWorth {
 			tx, err := web3.SendTransaction(ethClientWriter, contractLender, reinvestFunctionName, gasOpts, walletPrivateKey)
 			if err != nil {
-				log.Printf("failed to send transaction on Tarot %s: %v", opts.Chain, err)
+				log.Printf("failed to send transaction on Tarot %s: %v", tarotOtps.Chain, err)
+				time.Sleep(utils.RetryErrorSleep)
+
+				if strings.Contains(err.Error(), "context deadline exceeded") {
+					time.Sleep(utils.RetryExpiredContextSleep)
+					continue
+				}
+
+				if strings.Contains(err.Error(), "replacement transaction underpriced") {
+					//TODO: send eth to the wallet with higher priority fee.
+				}
+
 				time.Sleep(utils.RetryErrorSleep)
 				continue
 			}
@@ -105,91 +167,58 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 			cancel() // Immediately call cancel to free up resources
 
 			if err != nil {
-				log.Printf("failed to wait for receipt on Tarot %s: %v", opts.Chain, err)
+				log.Printf("failed to wait for receipt on Tarot %s: %v", tarotOtps.Chain, err)
 				continue
 			}
 
 			if receipt.Status == types.ReceiptStatusSuccessful {
 				log.Println("Successfully sent transaction on Tarot ", tx.Hash().Hex())
 			} else {
-				log.Printf("failed to send transaction on Tarot %s: %v", opts.Chain, err)
+				log.Printf("failed to send transaction on Tarot %s: %v", tarotOtps.Chain, err)
 			}
 		}
 		time.Sleep(utils.RetryMainSleep)
 	}
 }
 
-func GetTransactionGasFees(ethClient *ethclient.Client,
-	contractGauge *bind.BoundContract,
-	msg ethereum.CallMsg,
-	opts *models.TarotOpts,
-	blockOpts *bind.CallOpts,
-	priorityFeeIncreasePercent int,
-	cache *ristretto.Cache,
-	vaultPendingRewardChan chan models.WeiResult,
-	baseFeePerGasChan chan models.WeiResult,
-	estimateGasChan chan models.GasLimitResult,
-	priorityFeeChan chan models.WeiResult,
-	rewardPairValueChan chan models.WeiResult,
+func GetTransactionGasFees(
+	tarotOpts *models.TarotOpts,
+	tarotCalculationOpts *TarotCalculationOpts,
+	priorityFeeExtraPercent int,
+	gasLimitExtraPercent uint64,
 ) (bool, *web3.GasOpts, error) {
-	var wg sync.WaitGroup
-	wg.Add(5)
-
-	// Call web3 api asynchronously
-	go web3Async.EthCallAsync(contractGauge, "earned", blockOpts, vaultPendingRewardChan, &wg, opts.ContractLender)
-	go web3Async.GetBaseFeePerGasAsync(ethClient, blockOpts.BlockNumber, cache, "1", baseFeePerGasChan, &wg)
-	go web3Async.EstimateGasAsync(ethClient, msg, cache, "2", estimateGasChan, &wg)
-	go web3Async.GetPriorityFeeAsync(ethClient, opts.Sender, opts.ContractLender, big.NewInt(50), blockOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
-	go asyncservices.GetPoolPriceAsync(opts.Chain, cache, "4", rewardPairValueChan, &wg)
-
-	// Wait for goroutines
-	wg.Wait()
-
-	// Get the channels result
-	vaultPendingReward := <-vaultPendingRewardChan
-	baseFeePerGas := <-baseFeePerGasChan
-	estimateGasLimit := <-estimateGasChan
-	rewardPairValue := <-rewardPairValueChan
-	priorityFee := <-priorityFeeChan
-
-	if vaultPendingReward.Err != nil || baseFeePerGas.Err != nil || estimateGasLimit.Err != nil || rewardPairValue.Err != nil || priorityFee.Err != nil {
-		return false, nil, fmt.Errorf("error getting gas limit or reward pair value\nPending reward: %s\n:Base Fee: %s\nEstimate gas: %s\nReward Pair value: %s\nPriority fee: %s", vaultPendingReward.Err, baseFeePerGas.Err, estimateGasLimit.Err, rewardPairValue.Err, priorityFee.Err)
-	}
-
 	// Gas limit is too low to be correct
-	if estimateGasLimit.Value < 100000 {
+	if tarotCalculationOpts.EstimateGasLimitValue < gasLimitUsedExpectedMin {
 		return false, nil, fmt.Errorf("estimated gas limit is too low => skip")
 	}
 
 	// Set new priority fee depending on competitors
-	if priorityFee.Value == nil {
-		print("Priority is set to 0")
-		priorityFee.Value = zeroValue
+	if tarotCalculationOpts.PriorityFeeValue == nil {
+		//TODO zero log
+		tarotCalculationOpts.PriorityFeeValue = zeroValue
+		return false, nil, fmt.Errorf("priority fee is set to 0")
 	}
 
-	newPriorityFee_ := priorityFee.Value
-	if opts.PriorityFee.Cmp(priorityFee.Value) == 1 {
+	newPriorityFee_ := tarotCalculationOpts.PriorityFeeValue
+	if tarotOpts.PriorityFee.Cmp(tarotCalculationOpts.PriorityFeeValue) == 1 {
 		// Use the highest priority fee for the transaction
-		newPriorityFee_ = opts.PriorityFee
+		newPriorityFee_ = tarotOpts.PriorityFee
 	}
 
-	newPriorityFee := utils.IncreaseAmount(newPriorityFee_, priorityFeeIncreasePercent)
-	rewardToken := ComputeReward(vaultPendingReward.Value)
-	rewardEth := utils.ConvertToEth(rewardToken, rewardPairValue.Value)
+	newPriorityFee := utils.IncreaseAmount(newPriorityFee_, priorityFeeExtraPercent)
+	rewardToken := ComputeReward(tarotCalculationOpts.VaultPendingRewardValue)
+	rewardEth := utils.ConvertToEth(rewardToken, tarotCalculationOpts.RewardPairValue)
 
-	gasOpts := web3.BuildTransactionFeeArgs(baseFeePerGas.Value, newPriorityFee, estimateGasLimit.Value)
-	gasOpts.GasLimit = estimateGasLimit.Value + (estimateGasLimit.Value*30)/100
+	gasOpts := web3.BuildTransactionFeeArgs(tarotCalculationOpts.BaseFeeValue, newPriorityFee, tarotCalculationOpts.EstimateGasLimitValue)
+	gasOpts.GasLimit = tarotCalculationOpts.EstimateGasLimitValue + (tarotCalculationOpts.EstimateGasLimitValue*gasLimitExtraPercent)/100
 
 	diff := utils.ComputeDifference(rewardEth, gasOpts.TransactionFee)
 	isWorth := diff > -10
-	log.Printf("reward erc20: %v; reward weth: %v; transaction fee: %v; priorityFee: %v, reward pair: %v; difference: %v", rewardToken, rewardEth, gasOpts.TransactionFee, newPriorityFee, rewardPairValue.Value, diff)
+	log.Printf("reward erc20: %v; reward weth: %v; transaction fee: %v; priorityFee: %v, reward pair: %v; difference: %v", rewardToken, rewardEth, gasOpts.TransactionFee, newPriorityFee, tarotCalculationOpts.RewardPairValue, diff)
 	return isWorth, gasOpts, nil
 }
 
 func ComputeReward(vaultPendingReward *big.Int) *big.Int {
-	reinvestFee := new(big.Int)
-	reinvestFee.SetString("20000000000000000", 10) // 0.02 * 1e18 (which is 2e16)
-
 	// Calculate fee = reward * REINVEST_FEE / 1e18
 	reward := new(big.Int)
 	reward.Mul(vaultPendingReward, reinvestFee) // reward * reinvestFee
