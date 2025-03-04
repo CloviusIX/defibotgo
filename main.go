@@ -8,7 +8,8 @@ import (
 	"defibotgo/internal/web3"
 	"flag"
 	"github.com/ethereum/go-ethereum/crypto"
-	"log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"strings"
 )
 
@@ -18,29 +19,31 @@ var validChains = map[models.Chain]bool{
 }
 
 func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
 	var protocol *models.TarotOpts
 	var protocolErr error
 
 	chain := getChain()
-	log.Printf("Running with chain: %s\n", chain)
+	log.Info().Str("chain", string(chain)).Msg("Running with chain")
 
 	ethClient, err := web3.BuildWeb3Client(chain, true)
 	ethClientWriter, err2 := web3.BuildWeb3Client(chain, false)
 
 	if err != nil || err2 != nil {
-		log.Fatalf("Error building eth cient: %s", err)
+		log.Fatal().Err(err).Msg("Error building eth client")
 	}
-	log.Printf("Successfully built eth client on %s", chain)
+	log.Info().Str("chain", string(chain)).Msg("Successfully built eth client")
 
 	walletPrivateKey := config.GetSecret(config.WalletTarotKeyOne)
 
 	if walletPrivateKey == "" {
-		log.Fatalf("wallet test private key not found")
+		log.Fatal().Msg("wallet test private key not found")
 	}
 
 	walletPrivateKeyCiph, err := crypto.HexToECDSA(walletPrivateKey)
 	if err != nil {
-		log.Fatalf("wallet private key error: %s", err)
+		log.Fatal().Err(err).Msg("wallet private key error")
 	}
 
 	switch chain {
@@ -49,11 +52,11 @@ func main() {
 	case models.Optimism:
 		protocol, protocolErr = protocolconfig.GetTarotOptimismUsdcTarot()
 	default:
-		log.Fatalf("Unknown chain: %s", chain)
+		log.Fatal().Str("chain", string(chain)).Msg("Unknown chain")
 	}
 
 	if protocolErr != nil {
-		log.Fatalf("Error getting protocol: %s", err)
+		log.Fatal().Err(err).Msg("Error getting protocol")
 	}
 
 	tarot.Run(ethClient, ethClientWriter, protocol, walletPrivateKeyCiph)
@@ -69,14 +72,14 @@ func getChain() models.Chain {
 	flag.Parse()
 
 	if chainStr == "" {
-		log.Fatalln("Error: -chain parameter is required")
+		log.Fatal().Msg("Error: -chain parameter is required")
 	}
 
 	// Convert to uppercase and cast to Chain type
 	chain := models.Chain(strings.ToUpper(chainStr))
 
 	if !validChains[chain] {
-		log.Fatalf("Error: Invalid chain '%s'\n", chainStr)
+		log.Fatal().Str("chain", chainStr).Msg("Error: Invalid chain")
 	}
 
 	return chain

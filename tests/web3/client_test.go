@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"log"
+	"github.com/rs/zerolog/log"
 	"math/big"
 	"testing"
 )
@@ -38,7 +38,7 @@ func TestSendTransaction(t *testing.T) {
 	walletPrivateKey := config.GetSecret(config.WalletTestPrivateKey)
 
 	if walletPrivateKey == "" {
-		log.Fatalf("wallet test private key not found")
+		log.Fatal().Msg("wallet test private key not found")
 	}
 
 	testPrivateKey, err := crypto.HexToECDSA(walletPrivateKey)
