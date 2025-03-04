@@ -20,11 +20,11 @@ func ComputeDifference(value1 *big.Int, value2 *big.Int) float64 {
 	return percentageIncrease * 100
 }
 
-// ApplyPercentage adds a given percentage to the original *big.Int value.
+// IncreaseAmount adds a given percentage to the original *big.Int value.
 // For example, if the value is 1000 and percent is 25, the function returns 1250.
-func ApplyPercentage(value *big.Int, percent int64) *big.Int {
+func IncreaseAmount(value *big.Int, percent int) *big.Int {
 	// Convert percent to a *big.Int
-	percentage := big.NewInt(percent)
+	percentage := big.NewInt(int64(percent))
 
 	// Calculate the additional percentage amount
 	increase := new(big.Int).Mul(value, percentage)
@@ -37,11 +37,11 @@ func ApplyPercentage(value *big.Int, percent int64) *big.Int {
 }
 
 // RandomNumberInRange generates a random int64 number between min and max (inclusive).
-func RandomNumberInRange(min, max int64) int64 {
+func RandomNumberInRange(min int, max int) int {
 	if min >= max {
 		panic("min should be less than max")
 	}
 
 	// Generate a random number between min and max
-	return min + int64(rand.Intn(int(max-min+1)))
+	return min + rand.Intn(max-min+1)
 }

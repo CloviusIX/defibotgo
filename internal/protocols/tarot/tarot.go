@@ -17,19 +17,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 )
 
 type WeiApiFunc func() (*big.Int, error)
 
-var callOpts = bind.CallOpts{
-	Pending:     true,
-	BlockNumber: nil,
-	Context:     context.Background(),
-}
-
-var reinvestFunctionName = "reinvest"
+var (
+	reinvestFunctionName = "reinvest"
+	zeroValue            = big.NewInt(0)
+)
 
 func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
 	cache, err := ristretto.NewCache(&ristretto.Config{
@@ -41,15 +39,20 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 		panic(err)
 	}
 
+	// Init the channels needed for computing reward and gas fee
+	vaultPendingRewardChan := make(chan models.WeiResult, 1)
+	baseFeePerGasChan := make(chan models.WeiResult, 1)
+	estimateGasChan := make(chan models.GasLimitResult, 1)
+	rewardPairValueChan := make(chan models.WeiResult, 1)
+	priorityFeeChan := make(chan models.WeiResult, 1)
+
 	contractLender, err := web3.BuildContractInstance(ethClient, opts.ContractLender, abi.CONTRACT_ABI_LENDER)
 	if err != nil {
-		//return nil, fmt.Errorf("error building tarot contract lender instance on %s: %v", chain, err)
 		log.Fatalf("error building tarot contract lender instance on %s: %v", opts.Chain, err)
 	}
 
 	contractGauge, err := web3.BuildContractInstance(ethClient, opts.ContractGauge, abi.CONTRACT_ABI_GAUGE)
 	if err != nil {
-		//return nil, fmt.Errorf("error building tarot contract instance on %s: %v", chain, err)
 		log.Fatalf("error building tarot contract gauge instance on %s: %v", opts.ContractGauge, err)
 	}
 
@@ -63,17 +66,24 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 		log.Fatalf("failed to pack Tarot abi on %s: %v", opts.Chain, err)
 	}
 
+	callOpts := &bind.CallOpts{
+		Pending:     true,
+		BlockNumber: nil,
+		Context:     context.Background(),
+	}
+
 	// Create a message to simulate the transaction
 	callMsg := ethereum.CallMsg{
 		From:  opts.Sender,
 		To:    &opts.ContractLender,
 		Data:  data, // ABI-encoded function call data
-		Value: big.NewInt(0),
+		Value: zeroValue,
 	}
 	log.Printf("calling contract lender on %s", opts.ContractLender.Hex())
 
 	for {
-		isWorth, gasOpts, err := getTransactionGasFees(ethClient, contractGauge, callMsg, opts, cache)
+		priorityFeeIncreasePercent := utils.RandomNumberInRange(20, 25)
+		isWorth, gasOpts, err := GetTransactionGasFees(ethClient, contractGauge, callMsg, opts, callOpts, priorityFeeIncreasePercent, cache, vaultPendingRewardChan, baseFeePerGasChan, estimateGasChan, priorityFeeChan, rewardPairValueChan)
 		if err != nil {
 			log.Printf("error getting gas on Tarot %s: %v", opts.Chain, err)
 			time.Sleep(utils.RetryErrorSleep)
@@ -109,32 +119,31 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, opts *m
 	}
 }
 
-func getTransactionGasFees(ethClient *ethclient.Client, contractGauge *bind.BoundContract, msg ethereum.CallMsg, opts *models.TarotOpts, cache *ristretto.Cache) (bool, *web3.GasOpts, error) {
+func GetTransactionGasFees(ethClient *ethclient.Client,
+	contractGauge *bind.BoundContract,
+	msg ethereum.CallMsg,
+	opts *models.TarotOpts,
+	blockOpts *bind.CallOpts,
+	priorityFeeIncreasePercent int,
+	cache *ristretto.Cache,
+	vaultPendingRewardChan chan models.WeiResult,
+	baseFeePerGasChan chan models.WeiResult,
+	estimateGasChan chan models.GasLimitResult,
+	priorityFeeChan chan models.WeiResult,
+	rewardPairValueChan chan models.WeiResult,
+) (bool, *web3.GasOpts, error) {
 	var wg sync.WaitGroup
 	wg.Add(5)
 
-	vaultPendingRewardChan := make(chan models.WeiResult, 1)
-	baseFeePerGasChan := make(chan models.WeiResult, 1)
-	estimateGasChan := make(chan models.GasLimitResult, 1)
-	rewardPairValueChan := make(chan models.WeiResult, 1)
-	priorityFeeChan := make(chan models.WeiResult, 1)
-
 	// Call web3 api asynchronously
-	go web3Async.EthCallAsync(contractGauge, "earned", &callOpts, vaultPendingRewardChan, &wg, opts.ContractLender)
-	go web3Async.GetBaseFeePerGasAsync(ethClient, callOpts.BlockNumber, cache, "1", baseFeePerGasChan, &wg)
+	go web3Async.EthCallAsync(contractGauge, "earned", blockOpts, vaultPendingRewardChan, &wg, opts.ContractLender)
+	go web3Async.GetBaseFeePerGasAsync(ethClient, blockOpts.BlockNumber, cache, "1", baseFeePerGasChan, &wg)
 	go web3Async.EstimateGasAsync(ethClient, msg, cache, "2", estimateGasChan, &wg)
-	go web3Async.GetPriorityFeeAsync(ethClient, opts.Sender, opts.ContractLender, big.NewInt(50), callOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
+	go web3Async.GetPriorityFeeAsync(ethClient, opts.Sender, opts.ContractLender, big.NewInt(50), blockOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
 	go asyncservices.GetPoolPriceAsync(opts.Chain, cache, "4", rewardPairValueChan, &wg)
 
-	// Wait for goroutines and close the channel
-	go func() {
-		wg.Wait()
-		close(vaultPendingRewardChan)
-		close(baseFeePerGasChan)
-		close(estimateGasChan)
-		close(rewardPairValueChan)
-		close(priorityFeeChan)
-	}()
+	// Wait for goroutines
+	wg.Wait()
 
 	// Get the channels result
 	vaultPendingReward := <-vaultPendingRewardChan
@@ -152,12 +161,10 @@ func getTransactionGasFees(ethClient *ethclient.Client, contractGauge *bind.Boun
 		return false, nil, fmt.Errorf("estimated gas limit is too low => skip")
 	}
 
-	saveGasLimit := estimateGasLimit.Value + (estimateGasLimit.Value*30)/100
-
 	// Set new priority fee depending on competitors
 	if priorityFee.Value == nil {
 		print("Priority is set to 0")
-		priorityFee.Value = big.NewInt(0)
+		priorityFee.Value = zeroValue
 	}
 
 	newPriorityFee_ := priorityFee.Value
@@ -166,12 +173,12 @@ func getTransactionGasFees(ethClient *ethclient.Client, contractGauge *bind.Boun
 		newPriorityFee_ = opts.PriorityFee
 	}
 
-	newPriorityFee := utils.ApplyPercentage(newPriorityFee_, utils.RandomNumberInRange(20, 25))
+	newPriorityFee := utils.IncreaseAmount(newPriorityFee_, priorityFeeIncreasePercent)
 	rewardToken := ComputeReward(vaultPendingReward.Value)
 	rewardEth := utils.ConvertToEth(rewardToken, rewardPairValue.Value)
 
 	gasOpts := web3.BuildTransactionFeeArgs(baseFeePerGas.Value, newPriorityFee, estimateGasLimit.Value)
-	gasOpts.GasLimit = saveGasLimit
+	gasOpts.GasLimit = estimateGasLimit.Value + (estimateGasLimit.Value*30)/100
 
 	diff := utils.ComputeDifference(rewardEth, gasOpts.TransactionFee)
 	isWorth := diff > -10
