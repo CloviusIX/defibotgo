@@ -1,16 +1,20 @@
 package protocols
 
 import (
+	"context"
+	"defibotgo/internal/abi"
 	"defibotgo/internal/config"
 	"defibotgo/internal/models"
 	"defibotgo/internal/protocols/tarot"
 	"defibotgo/internal/utils"
+	"defibotgo/internal/web3"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
 )
 
-func TestComputeReward(t *testing.T) {
+func TestComputeRewardToEth(t *testing.T) {
 	expected := big.NewInt(508132436312)
 
 	vaultPendingReward := big.NewInt(795946798735693857)
@@ -20,6 +24,38 @@ func TestComputeReward(t *testing.T) {
 	rewardConverted := utils.ConvertToEth(rewardToken, pairValue)
 	if rewardConverted.Cmp(expected) != 0 {
 		t.Fatalf("rewardToken is incorrect: expecting %v got %v", expected, rewardConverted)
+	}
+}
+
+func TestComputeRewardOnChain(t *testing.T) {
+	chain := models.Base
+	contractLenderAddress := common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9")
+	contractGaugeAddress := common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360")
+	rewardExpected := big.NewInt(2448679558346277)
+
+	callOpts := &bind.CallOpts{
+		Pending:     false,
+		BlockNumber: big.NewInt(27248735),
+		Context:     context.Background(),
+	}
+
+	ethClient, err := web3.BuildWeb3Client(chain, true)
+	if err != nil {
+		t.Fatalf("failed to build web3 client: %v", err)
+	}
+	contractGauge, err := web3.BuildContractInstance(ethClient, contractGaugeAddress, abi.CONTRACT_ABI_GAUGE)
+	if err != nil {
+		t.Fatalf("failed to build contract instance: %v", err)
+	}
+
+	vaultPendingReward, err := web3.EthCall(contractGauge, "earned", callOpts, contractLenderAddress)
+	if err != nil {
+		t.Fatalf("failed to call earned contract: %v", err)
+	}
+
+	rewardToken := tarot.ComputeReward(vaultPendingReward)
+	if rewardExpected.Cmp(rewardToken) != 0 {
+		t.Fatalf("the reward token is incorrect: expecting %v got %v", rewardToken, rewardToken)
 	}
 }
 
