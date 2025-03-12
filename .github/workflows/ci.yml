@@ -36,8 +36,10 @@ jobs:
       - name: Set up environment variables tests
         run : |
           echo "WALLET_TEST_PRIVATE_KEY=${{ secrets.WALLET_TEST_PRIVATE_KEY }}" >> $GITHUB_ENV
-          echo "NODE_RPC_READ=${{ secrets.NODE_RPC_READ }}" >> $GITHUB_ENV
-          echo "NODE_RPC_WRITE=${{ secrets.NODE_RPC_WRITE }}" >> $GITHUB_ENV
+          echo "RPC_NODE_OPTIMISM_READ=${{ secrets.RPC_NODE_OPTIMISM_READ }}" >> $GITHUB_ENV
+          echo "RPC_NODE_OPTIMISM_WRITE=${{ secrets.RPC_NODE_OPTIMISM_WRITE }}" >> $GITHUB_ENV
+          echo "RPC_NODE_BASE_READ=${{ secrets.RPC_NODE_BASE_READ }}" >> $GITHUB_ENV
+          echo "RPC_NODE_BASE_WRITE=${{ secrets.RPC_NODE_BASE_WRITE }}" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

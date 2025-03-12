@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"log"
+	"github.com/rs/zerolog/log"
 	"math/big"
 )
 
@@ -170,7 +170,7 @@ func GetPriorityFee(ethClient *ethclient.Client, senderAddress common.Address, c
 	for _, transaction := range transactions {
 		txSender, errSender := getSender(transaction)
 		if errSender != nil {
-			log.Printf("failed to get sender: %v", errSender)
+			log.Warn().Err(errSender).Msg("Failed to get sender")
 			continue
 		}
 		if txSender.Hex() != senderAddressStr && transaction.GasTipCap().Cmp(maxPriorityFee) == 1 {

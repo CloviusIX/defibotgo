@@ -20,10 +20,12 @@ DefiBot is a self-project to explore DeFi (Decentralized Finance) opportunities 
 Create a file .env in the root directory with the following content:
 
 ```
-ACCOUNT_PRIVATE_KEY_TAROT_ONE=<your_wallet_private_key>
-ACCOUNT_SENDER_ADDRESS_TAROT_ONE=<your_wallet_address>
-NODE_RPC_READ=<your_rpc_node_for_reading>
-NODE_RPC_WRITE=<your_rpc_node_for_writting>
+ACCOUNT_PRIVATE_KEY_TAROT_ONE_0XB8=<your_wallet_private_key>
+ACCOUNT_SENDER_ADDRESS_TAROT_ONE_0XB8=<your_wallet_address>
+RPC_NODE_OPTIMISM_READ=<your_optimism_reading_rpc_node>
+RPC_NODE_OPTIMISM_WRITE=<your_optimism_writing_rpc_node>
+RPC_NODE_BASE_READ=<your_base_reading_rpc_node>
+RPC_NODE_BASE_WRITE=<your_base_writing_rpc_node>
 ```
 
 ### Setup
@@ -66,8 +68,10 @@ Create a file `.env.test` in the root directory with the following content:
 
 ```
 WALLET_TEST_PRIVATE_KEY=<your_wallet_private_key>
-NODE_RPC_READ=<your_rpc_node_for_reading>
-NODE_RPC_WRITE=<your_rpc_node_for_writting>
+RPC_NODE_BASE_READ=<your_base_reading_rpc_node>
+RPC_NODE_BASE_WRITE=<your_base_writing_rpc_node>
+RPC_NODE_OPTIMISM_READ=<your_optimism_reading_rpc_node>
+RPC_NODE_OPTIMISM_WRITE=<your_optimism_writing_rpc_node>
 ```
 
 ### Run Tests

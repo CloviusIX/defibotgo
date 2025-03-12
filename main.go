@@ -3,43 +3,84 @@ package main
 import (
 	"defibotgo/internal/config"
 	"defibotgo/internal/models"
+	protocolconfig "defibotgo/internal/protocols/config"
 	"defibotgo/internal/protocols/tarot"
 	"defibotgo/internal/web3"
-	"github.com/ethereum/go-ethereum/common"
+	"flag"
 	"github.com/ethereum/go-ethereum/crypto"
-	"log"
-	"math/big"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"strings"
 )
 
+var validChains = map[models.Chain]bool{
+	models.Optimism: true,
+	models.Base:     true,
+}
+
 func main() {
-	chain := models.Optimism
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
+	var protocol *models.TarotOpts
+	var protocolErr error
+
+	chain := getChain()
+	log.Info().Str("chain", string(chain)).Msg("Running with chain")
+
 	ethClient, err := web3.BuildWeb3Client(chain, true)
 	ethClientWriter, err2 := web3.BuildWeb3Client(chain, false)
 
 	if err != nil || err2 != nil {
-		log.Fatalf("Error building eth cient: %s", err)
+		log.Fatal().Err(err).Msg("Error building eth client")
 	}
-	log.Printf("Successfully built eth client on %s %p", chain, ethClient)
+	log.Info().Str("chain", string(chain)).Msg("Successfully built eth client")
 
 	walletPrivateKey := config.GetSecret(config.WalletTarotKeyOne)
-	senderWallet := config.GetSecret(config.WalletTarotAddressOne)
 
 	if walletPrivateKey == "" {
-		log.Fatalf("wallet test private key not found")
+		log.Fatal().Msg("wallet test private key not found")
 	}
 
 	walletPrivateKeyCiph, err := crypto.HexToECDSA(walletPrivateKey)
 	if err != nil {
-		log.Fatalf("wallet private key error: %s", err)
+		log.Fatal().Err(err).Msg("wallet private key error")
 	}
 
-	var tarotOpA = tarot.TarotOpts{
-		Sender:           common.HexToAddress(senderWallet),
-		PriorityFee:      big.NewInt(5678),
-		BlockRangeFilter: big.NewInt(20),
-		ContractLender:   common.HexToAddress("0x80942A0066F72eFfF5900CF80C235dd32549b75d"),
-		ContractGauge:    common.HexToAddress("0x73d5C2f4EB0E4EB15B3234f8B880A10c553DA1ea"),
+	switch chain {
+	case models.Base:
+		protocol, protocolErr = protocolconfig.GetTarotBaseUsdcAero()
+	case models.Optimism:
+		protocol, protocolErr = protocolconfig.GetTarotOptimismUsdcTarot()
+	default:
+		log.Fatal().Str("chain", string(chain)).Msg("Unknown chain")
 	}
 
-	tarot.Run(ethClient, ethClientWriter, chain, &tarotOpA, walletPrivateKeyCiph)
+	if protocolErr != nil {
+		log.Fatal().Err(err).Msg("Error getting protocol")
+	}
+
+	tarot.Run(ethClient, ethClientWriter, protocol, walletPrivateKeyCiph)
+}
+
+// getChain retrieves and validates the blockchain chain parameter from command-line flags.
+//
+// If validation fails at any point, the function logs an error message and
+// exits the program with a non-zero status code.
+func getChain() models.Chain {
+	var chainStr string
+	flag.StringVar(&chainStr, "chain", "", "Blockchain to connect to (required)")
+	flag.Parse()
+
+	if chainStr == "" {
+		log.Fatal().Msg("Error: -chain parameter is required")
+	}
+
+	// Convert to uppercase and cast to Chain type
+	chain := models.Chain(strings.ToUpper(chainStr))
+
+	if !validChains[chain] {
+		log.Fatal().Str("chain", chainStr).Msg("Error: Invalid chain")
+	}
+
+	return chain
 }

@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/joho/godotenv"
-	"log"
+	"github.com/rs/zerolog/log"
 	"os"
 	"sync"
 )
@@ -11,10 +11,13 @@ import (
 type SecretKey int
 
 const (
-	RpcNodeReadKey SecretKey = iota
-	RpcNodeWriteKey
+	RpcNodeBaseReadKey SecretKey = iota
+	RpcNodeBaseWriteKey
+	RpcNodeOptimismReadKey
+	RpcNodeOptimismWriteKey
 	WalletTarotKeyOne
 	WalletTarotAddressOne
+	WalletTestPrivateKey
 )
 
 var (
@@ -31,15 +34,20 @@ func loadSecrets() {
 	switch env {
 	case "test":
 		secrets = map[SecretKey]string{
-			RpcNodeReadKey:  getEnvOrFatal("NODE_RPC_READ"),
-			RpcNodeWriteKey: getEnvOrFatal("NODE_RPC_WRITE"),
+			RpcNodeBaseReadKey:      getEnvOrFatal("RPC_NODE_BASE_READ"),
+			RpcNodeBaseWriteKey:     getEnvOrFatal("RPC_NODE_BASE_WRITE"),
+			RpcNodeOptimismReadKey:  getEnvOrFatal("RPC_NODE_OPTIMISM_READ"),
+			RpcNodeOptimismWriteKey: getEnvOrFatal("RPC_NODE_OPTIMISM_WRITE"),
+			WalletTestPrivateKey:    getEnvOrFatal("WALLET_TEST_PRIVATE_KEY"),
 		}
 	default:
 		secrets = map[SecretKey]string{
-			RpcNodeReadKey:        getEnvOrFatal("NODE_RPC_READ"),
-			RpcNodeWriteKey:       getEnvOrFatal("NODE_RPC_WRITE"),
-			WalletTarotKeyOne:     getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_ONE"),
-			WalletTarotAddressOne: getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE"),
+			RpcNodeBaseReadKey:      getEnvOrFatal("RPC_NODE_BASE_READ"),
+			RpcNodeBaseWriteKey:     getEnvOrFatal("RPC_NODE_BASE_WRITE"),
+			RpcNodeOptimismReadKey:  getEnvOrFatal("RPC_NODE_OPTIMISM_READ"),
+			RpcNodeOptimismWriteKey: getEnvOrFatal("RPC_NODE_OPTIMISM_WRITE"),
+			WalletTarotKeyOne:       getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_ONE_0XB8"),
+			WalletTarotAddressOne:   getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE_0XB8"),
 		}
 	}
 }
@@ -54,16 +62,16 @@ func loadEnvFile(env string) {
 	case "development":
 		envFile = ".env"
 	case "production":
-		log.Println("Production environment detected; skipping .env file loading.")
+		log.Info().Msg("Production environment detected; skipping .env file loading.")
 		return
 	default:
-		log.Printf("Unknown APP_ENV '%s'. Using .env by default.", env)
+		log.Info().Str("env file", env).Msg("Unknown APP_ENV. Using .env by default.")
 		envFile = ".env"
 	}
 
 	// Load the selected .env file
 	if err := godotenv.Load(envFile); err != nil {
-		log.Printf("Info: %s file not found or could not be loaded. Proceeding with environment variables.", envFile)
+		log.Info().Str("env file", envFile).Msg("env file not found or could not be loaded. Proceeding with environment variables.")
 	}
 }
 
@@ -71,7 +79,7 @@ func loadEnvFile(env string) {
 func getEnvOrFatal(key string) string {
 	value, exists := os.LookupEnv(key)
 	if !exists {
-		log.Fatalf("Environment variable %s is required but not set.", key)
+		log.Fatal().Str("key", key).Msg("Environment variable is required but not set")
 	}
 	return value
 }
@@ -83,7 +91,7 @@ func GetSecret(key SecretKey) string {
 
 	secret, exists := secrets[key]
 	if !exists {
-		log.Fatalf("secret not found for key: %v", key)
+		log.Fatal().Int("key", int(key)).Msg("secret not found for key")
 	}
 	return secret
 }

@@ -30,5 +30,6 @@ COPY --from=builder /app/main /usr/src/app/
 # Set the user to non-root `appuser`
 USER appuser
 
-# Command to run the executable
-CMD ["/usr/src/app/main"]
+## ENTRYPOINT ensures the main binary always runs and allows command-line flags
+## Example: docker run -d --env-file .env --name custom-name image-name:tag -chain=optimism
+ENTRYPOINT ["/usr/src/app/main"]
