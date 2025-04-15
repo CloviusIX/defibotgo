@@ -43,7 +43,6 @@ var (
 	transactionsBlockRange  = big.NewInt(50)
 	gasLimitExtraPercent    = uint64(30)
 	gasLimitUsedExpectedMin = uint64(100000)
-	reinvestFee, _          = new(big.Int).SetString("20000000000000000", 10) // 0.02 * 1e18 (which is 2e16)
 )
 
 func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOpts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
@@ -157,7 +156,7 @@ func GetTransactionGasFees(
 	}
 
 	newPriorityFee := utils.IncreaseAmount(newPriorityFee_, priorityFeeExtraPercent)
-	rewardToken := ComputeReward(tarotCalculationOpts.VaultPendingRewardValue)
+	rewardToken := ComputeReward(tarotCalculationOpts.VaultPendingRewardValue, tarotOpts.ReinvestBounty)
 	rewardEth := utils.ConvertToEth(rewardToken, tarotCalculationOpts.RewardPairValue)
 
 	gasOpts := web3.BuildTransactionFeeArgs(tarotCalculationOpts.BaseFeeValue, newPriorityFee, tarotCalculationOpts.EstimateGasLimitValue)
@@ -182,13 +181,12 @@ func GetTransactionGasFees(
 	return isWorth, gasOpts, nil
 }
 
-func ComputeReward(vaultPendingReward *big.Int) *big.Int {
-	// Calculate fee = reward * REINVEST_FEE / 1e18
-	reward := new(big.Int)
-	reward.Mul(vaultPendingReward, reinvestFee) // reward * reinvestFee
-	reward.Div(reward, utils.OneE18)            // divide by 1e18
+func ComputeReward(vaultPendingReward *big.Int, reinvestBounty *big.Int) *big.Int {
+	// Calculate bounty = reward * REINVEST_BOUNTY / 1e18
+	bounty := new(big.Int).Mul(vaultPendingReward, reinvestBounty) // reward * reinvestBounty
+	bounty.Div(bounty, utils.OneE18)                               // divide by 1e18
 
-	return reward
+	return bounty
 }
 
 func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.BoundContract, *bind.BoundContract, *bind.CallOpts, ethereum.CallMsg) {

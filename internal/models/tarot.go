@@ -6,10 +6,11 @@ import (
 )
 
 type TarotOpts struct {
-	Chain            Chain
-	Sender           common.Address
+	ReinvestBounty   *big.Int
 	PriorityFee      *big.Int
 	BlockRangeFilter *big.Int
+	Chain            Chain
+	Sender           common.Address
 	ContractLender   common.Address
 	ContractGauge    common.Address
 }
