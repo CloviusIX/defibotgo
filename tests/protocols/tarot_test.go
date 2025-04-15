@@ -14,13 +14,15 @@ import (
 	"testing"
 )
 
+var reinvestBounty = big.NewInt(10000000000000000)
+
 func TestComputeRewardToEth(t *testing.T) {
-	expected := big.NewInt(508132436312)
+	expected := big.NewInt(254066218156)
 
 	vaultPendingReward := big.NewInt(795946798735693857)
 	pairValue := big.NewInt(31920000000000)
 
-	rewardToken := tarot.ComputeReward(vaultPendingReward)
+	rewardToken := tarot.ComputeReward(vaultPendingReward, reinvestBounty)
 	rewardConverted := utils.ConvertToEth(rewardToken, pairValue)
 	if rewardConverted.Cmp(expected) != 0 {
 		t.Fatalf("rewardToken is incorrect: expecting %v got %v", expected, rewardConverted)
@@ -31,7 +33,7 @@ func TestComputeRewardOnChain(t *testing.T) {
 	chain := models.Base
 	contractLenderAddress := common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9")
 	contractGaugeAddress := common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360")
-	rewardExpected := big.NewInt(2448679558346277)
+	rewardExpected := big.NewInt(1224339779173138)
 
 	callOpts := &bind.CallOpts{
 		Pending:     false,
@@ -53,9 +55,9 @@ func TestComputeRewardOnChain(t *testing.T) {
 		t.Fatalf("failed to call earned contract: %v", err)
 	}
 
-	rewardToken := tarot.ComputeReward(vaultPendingReward)
+	rewardToken := tarot.ComputeReward(vaultPendingReward, reinvestBounty)
 	if rewardExpected.Cmp(rewardToken) != 0 {
-		t.Fatalf("the reward token is incorrect: expecting %v got %v", rewardToken, rewardToken)
+		t.Fatalf("the reward token is incorrect: expecting %v got %v", rewardExpected, rewardToken)
 	}
 }
 
@@ -70,10 +72,11 @@ func TestGetTransactionGasFees(t *testing.T) {
 	gasTipExpected := big.NewInt(428970)
 
 	protocolOpts := &models.TarotOpts{
-		Chain:            chain,
-		Sender:           common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
+		ReinvestBounty:   big.NewInt(20000000000000000),
 		PriorityFee:      big.NewInt(5678),
 		BlockRangeFilter: big.NewInt(20),
+		Sender:           common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
+		Chain:            chain,
 		ContractLender:   common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9"),
 		ContractGauge:    common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360"),
 	}
@@ -114,7 +117,7 @@ func TestGetTransactionGasFees(t *testing.T) {
 	}
 
 	if gasOpts.GasTipCap.Cmp(gasTipExpected) != 0 {
-		t.Fatalf("the priority fee is incrorrect: expecting %v got %v", big.NewInt(461678), gasOpts.GasTipCap)
+		t.Fatalf("the priority fee is incorrect: expecting %v got %v", big.NewInt(461678), gasOpts.GasTipCap)
 	}
 
 }
