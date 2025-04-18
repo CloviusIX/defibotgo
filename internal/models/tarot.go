@@ -6,11 +6,13 @@ import (
 )
 
 type TarotOpts struct {
-	ReinvestBounty   *big.Int
-	PriorityFee      *big.Int
-	BlockRangeFilter *big.Int
-	Chain            Chain
-	Sender           common.Address
-	ContractLender   common.Address
-	ContractGauge    common.Address
+	ReinvestBounty         *big.Int
+	PriorityFee            *big.Int
+	BlockRangeFilter       *big.Int
+	Chain                  Chain
+	Sender                 common.Address
+	ContractLender         common.Address
+	ContractGauge          common.Address
+	ContractGasPriceOracle common.Address
+	//	TODO: set common.Address as ref ?
 }

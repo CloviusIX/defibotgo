@@ -23,6 +23,8 @@ func ComputeDifference(value1 *big.Int, value2 *big.Int) float64 {
 // IncreaseAmount adds a given percentage to the original *big.Int value.
 // For example, if the value is 1000 and percent is 25, the function returns 1250.
 func IncreaseAmount(value *big.Int, percent int) *big.Int {
+	// TODO set percent as big int through params from the opts ?
+
 	// Convert percent to a *big.Int
 	percentage := big.NewInt(int64(percent))
 
@@ -32,6 +34,23 @@ func IncreaseAmount(value *big.Int, percent int) *big.Int {
 
 	// Add the increase to the original value
 	result := new(big.Int).Add(value, increase)
+
+	return result
+}
+
+// DecreaseAmount adds a given percentage to the original *big.Int value.
+// For example, if the value is 1000 and percent is 25, the function returns 1250.
+func DecreaseAmount(value *big.Int, percent int) *big.Int {
+	// TODO set percent as big int through params from the opts ?
+	// Convert percent to a *big.Int
+	percentage := big.NewInt(int64(percent))
+
+	// Calculate the additional percentage amount
+	decrease := new(big.Int).Mul(value, percentage)
+	decrease.Div(decrease, big.NewInt(100))
+
+	// Add the increase to the original value
+	result := new(big.Int).Sub(value, decrease)
 
 	return result
 }

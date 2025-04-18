@@ -1,4 +1,4 @@
-package abi
+package contract_abi
 
 // CONTRACT_ABI_LENDER is the ABI definition for the lender contract
 const CONTRACT_ABI_LENDER = `[
@@ -22,4 +22,19 @@ const CONTRACT_ABI_GAUGE = `[
         "stateMutability": "view",
         "type": "function"
     }
+]`
+
+// CONTRACT_ABI_GAS_PRICE_ORACLE is the ABI definition for the gas price oracle contract
+const CONTRACT_ABI_GAS_PRICE_ORACLE = `[
+	{
+	  "inputs": [
+		{ "internalType": "bytes", "name": "_data", "type": "bytes" }
+	  ],
+	  "name": "getL1Fee",
+	  "outputs": [
+		{ "internalType": "uint256", "name": "fee", "type": "uint256" }
+	  ],
+	  "stateMutability": "view",
+	  "type": "function"
+	}
 ]`

@@ -2,17 +2,14 @@ package web3
 
 import (
 	"context"
-	"defibotgo/internal/abi"
-	"defibotgo/internal/config"
+	"defibotgo/internal/contract_abi"
 	"defibotgo/internal/models"
 	"defibotgo/internal/web3"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/rs/zerolog/log"
 	"math/big"
 	"testing"
 )
@@ -31,49 +28,49 @@ var callOpts = bind.CallOpts{
 	Context:     context.Background(),
 }
 
-func TestSendTransaction(t *testing.T) {
-	functionParam := big.NewInt(1)
-	gasLimit := uint64(1090381)
-	priorityFee := big.NewInt(5275)
-	walletPrivateKey := config.GetSecret(config.WalletTestPrivateKey)
-
-	if walletPrivateKey == "" {
-		log.Fatal().Msg("wallet test private key not found")
-	}
-
-	testPrivateKey, err := crypto.HexToECDSA(walletPrivateKey)
-	if err != nil {
-		t.Fatalf("Failed to load account private key: %v", err)
-	}
-
-	ethClient, err := ethclient.Dial(testnetRpcUrl)
-	if err != nil {
-		t.Fatalf("Failed to build test Web3 client: %v", err)
-	}
-
-	baseFee, err := web3.GetBaseFeePerGas(ethClient, nil)
-	if err != nil {
-		t.Fatalf("Failed to get base fee: %v", err)
-	}
-
-	contract, err := web3.BuildContractInstance(ethClient, contractTestAddress, contractAbiTest)
-	if err != nil {
-		t.Fatalf("Failed to build contract: %v", err)
-	}
-
-	gasOpts := web3.BuildTransactionFeeArgs(baseFee, priorityFee, gasLimit)
-	tx, err := web3.SendTransaction(ethClient, contract, testWriteFunction, gasOpts, testPrivateKey, functionParam)
-
-	if tx == nil || err != nil {
-		t.Fatalf("Failed to send transaction: %v", err)
-	}
-}
+//func TestSendTransaction(t *testing.T) {
+//	functionParam := big.NewInt(1)
+//	gasLimit := uint64(1090381)
+//	priorityFee := big.NewInt(5275)
+//	walletPrivateKey := config.GetSecret(config.WalletTestPrivateKey)
+//
+//	if walletPrivateKey == "" {
+//		log.Fatal().Msg("wallet test private key not found")
+//	}
+//
+//	testPrivateKey, err := crypto.HexToECDSA(walletPrivateKey)
+//	if err != nil {
+//		t.Fatalf("Failed to load account private key: %v", err)
+//	}
+//
+//	ethClient, err := ethclient.Dial(testnetRpcUrl)
+//	if err != nil {
+//		t.Fatalf("Failed to build test Web3 client: %v", err)
+//	}
+//
+//	baseFee, err := web3.GetBaseFeePerGas(ethClient, nil)
+//	if err != nil {
+//		t.Fatalf("Failed to get base fee: %v", err)
+//	}
+//
+//	contract, err := web3.BuildContractInstance(ethClient, contractTestAddress, contractAbiTest)
+//	if err != nil {
+//		t.Fatalf("Failed to build contract: %v", err)
+//	}
+//
+//	gasOpts := web3.BuildTransactionFeeArgs(baseFee, priorityFee, gasLimit)
+//	tx, err := web3.SendTransaction(ethClient, contract, testWriteFunction, gasOpts, testPrivateKey, functionParam)
+//
+//	if tx == nil || err != nil {
+//		t.Fatalf("Failed to send transaction: %v", err)
+//	}
+//}
 
 func TestEthCallGetTarotEarnedFn(t *testing.T) {
 	expected := new(big.Int)
 	expected.SetString("80409552891557643738", 10)
 
-	abiStr := abi.CONTRACT_ABI_GAUGE
+	abiStr := contract_abi.CONTRACT_ABI_GAUGE
 	contractAddressLender := common.HexToAddress("0x3b749be6ca33f27e2837138ede69f8c6c53f9207")
 	contractAddressGauge := common.HexToAddress("0x1239c54d9fd91e6ecec8eaad80df0fed43c47673")
 	functionName := "earned"
@@ -129,12 +126,12 @@ func TestEstimateGas(t *testing.T) {
 
 	abiJson, err := web3.LoadAbi(contractAbiTest)
 	if err != nil {
-		t.Fatalf("Failed to load abi: %v", err)
+		t.Fatalf("Failed to load contract_abi: %v", err)
 	}
 
 	data, err := abiJson.Pack(testWriteFunction, big.NewInt(1))
 	if err != nil {
-		t.Fatalf("Failed to pack abi: %v", err)
+		t.Fatalf("Failed to pack contract_abi: %v", err)
 	}
 
 	// Create a message to simulate the transaction

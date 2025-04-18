@@ -2,8 +2,8 @@ package protocols
 
 import (
 	"context"
-	"defibotgo/internal/abi"
 	"defibotgo/internal/config"
+	"defibotgo/internal/contract_abi"
 	"defibotgo/internal/models"
 	"defibotgo/internal/protocols/tarot"
 	"defibotgo/internal/utils"
@@ -45,7 +45,7 @@ func TestComputeRewardOnChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build web3 client: %v", err)
 	}
-	contractGauge, err := web3.BuildContractInstance(ethClient, contractGaugeAddress, abi.CONTRACT_ABI_GAUGE)
+	contractGauge, err := web3.BuildContractInstance(ethClient, contractGaugeAddress, contract_abi.CONTRACT_ABI_GAUGE)
 	if err != nil {
 		t.Fatalf("failed to build contract instance: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestGetTransactionGasFees(t *testing.T) {
 	tarotCalculationOpts.EstimateGasLimitValue = 426244
 	tarotCalculationOpts.PriorityFeeValue = big.NewInt(428970)
 
-	isWorth, gasOpts, err := tarot.GetTransactionGasFees(
+	isWorth, gasOpts, _, err := tarot.GetL2TransactionGasFees(
 		protocolOpts,
 		tarotCalculationOpts,
 		priorityFeeIncreasePercent,

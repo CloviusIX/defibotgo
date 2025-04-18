@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"strings"
+	"time"
 )
 
 var validChains = map[models.Chain]bool{
@@ -19,7 +20,7 @@ var validChains = map[models.Chain]bool{
 }
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimeFieldFormat = time.DateTime
 
 	var protocol *models.TarotOpts
 	var protocolErr error
