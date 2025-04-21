@@ -46,6 +46,8 @@ var (
 )
 
 func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOpts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
+	log.Info().Msgf("Starting Tarot calculation on %s", tarotOpts.Chain)
+
 	chainID, err := ethClientWriter.ChainID(rootCtx)
 	if err != nil {
 		panic(err)
@@ -68,7 +70,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 	priorityFeeChan := make(chan models.WeiResult, 1)
 
 	contractGauge, contractGasPriceOracle, callOpts, callMsg, lenderCallData := buildOpts(ethClient, tarotOpts)
-	log.Info().Str("contract lender", tarotOpts.ContractLender.Hex()).Msg("Calling contract lender")
+	minExtraPriorityFeePercent, maxExtraPriorityFeePercent := tarotOpts.ExtraPriorityFeePercent[0], tarotOpts.ExtraPriorityFeePercent[1]
 
 	for {
 		select {
@@ -125,8 +127,8 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		tarotCalculationOpts.PriorityFeeValue = tarotCalculationOpts.PriorityFee.Value
 		tarotCalculationOpts.RewardPairValue = tarotCalculationOpts.RewardPair.Value
 
-		// Add 8 up to 20% of extra priority fees to make it unpredictable
-		priorityFeeExtraPercent := utils.RandomNumberInRange(8, 20)
+		// Add extra priority fees to make it unpredictable
+		priorityFeeExtraPercent := utils.RandomNumberInRange(minExtraPriorityFeePercent, maxExtraPriorityFeePercent)
 		isL2Worth, l2GasOpts, rewardEth, err := GetL2TransactionGasFees(tarotOpts, tarotCalculationOpts, priorityFeeExtraPercent, gasLimitExtraPercent)
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error getting gas on Tarot")
@@ -216,7 +218,6 @@ func GetL2TransactionGasFees(
 		Msg("")
 
 	// Increase gas limit to ensure the success of the transaction
-	// TODO: use utils.IncreaseAmount
 	gasOpts.GasLimit = tarotCalculationOpts.EstimateGasLimitValue + (tarotCalculationOpts.EstimateGasLimitValue*gasLimitExtraPercent)/100
 
 	return isWorth, gasOpts, rewardEth, nil
@@ -245,8 +246,7 @@ func getL1TransactionGasFees(
 	transactionFee := new(big.Int).Add(gasOpts.TransactionFee, scaledL1GasFee)
 	diff := utils.ComputeDifference(rewardEth, transactionFee)
 
-	// TODO: set value though params
-	isWorth := diff > -6
+	isWorth := diff > tarotOpts.ProfitableThreshold
 	log.Info().Str("l1GasFee", l1GasFee.String()).Str("scaledL1GasFee", scaledL1GasFee.String()).Str("transaction fee", transactionFee.String()).Float64("diff", diff).Msg("")
 
 	return isWorth, signedTx, nil
