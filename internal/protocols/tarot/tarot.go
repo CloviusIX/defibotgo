@@ -67,7 +67,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 	rewardPairValueChan := make(chan models.WeiResult, 1)
 	priorityFeeChan := make(chan models.WeiResult, 1)
 
-	contractGauge, contractGasPriceOracle, callOpts, callMsg := buildOpts(ethClient, tarotOpts)
+	contractGauge, contractGasPriceOracle, callOpts, callMsg, lenderCallData := buildOpts(ethClient, tarotOpts)
 	log.Info().Str("contract lender", tarotOpts.ContractLender.Hex()).Msg("Calling contract lender")
 
 	for {
@@ -142,7 +142,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		}
 
 		// Estimate L1 gas fee
-		isWorth, signedTx, err := getL1TransactionGasFees(iterCtx, ethClient, chainID, callOpts, l2GasOpts, tarotOpts, contractGasPriceOracle, rewardEth, walletPrivateKey)
+		isWorth, signedTx, err := getL1TransactionGasFees(iterCtx, ethClient, chainID, callOpts, l2GasOpts, tarotOpts, contractGasPriceOracle, lenderCallData, rewardEth, walletPrivateKey)
 		loopCancel()
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error getting l1 gas fee")
@@ -230,10 +230,11 @@ func getL1TransactionGasFees(
 	gasOpts *web3.GasOpts,
 	tarotOpts *models.TarotOpts,
 	contractGasPriceOracle *bind.BoundContract,
+	toContractCallData []byte,
 	rewardEth *big.Int,
 	walletPrivateKey *ecdsa.PrivateKey,
 ) (bool, *types.Transaction, error) {
-	l1GasFee, signedTx, err := web3.GetL1GasFee(ctx, ethClient, chainId, callOpts, gasOpts, contractGasPriceOracle, &tarotOpts.ContractLender, reinvestFunctionName, walletPrivateKey)
+	l1GasFee, signedTx, err := web3.GetL1GasFee(ctx, ethClient, chainId, callOpts, gasOpts, contractGasPriceOracle, &tarotOpts.ContractLender, toContractCallData, walletPrivateKey)
 	if err != nil {
 		return false, nil, err
 	}
@@ -264,7 +265,7 @@ func ComputeReward(vaultPendingReward *big.Int, reinvestBounty *big.Int) *big.In
 // Note: The returned CallOpts.Context must be set manually by the caller
 //
 //	(e.g., using context.WithTimeout or context.WithCancel) before use.
-func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.BoundContract, *bind.BoundContract, *bind.CallOpts, ethereum.CallMsg) {
+func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.BoundContract, *bind.BoundContract, *bind.CallOpts, ethereum.CallMsg, []byte) {
 	contractGauge, err := web3.BuildContractInstance(ethClient, tarotOpts.ContractGauge, contract_abi.CONTRACT_ABI_GAUGE)
 	if err != nil {
 		log.Fatal().Err(err).Str("gauge contract", tarotOpts.ContractGauge.String()).Msg("Error building tarot contract gauge instance")
@@ -275,17 +276,16 @@ func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.
 		log.Fatal().Err(err).Str("gauge contract", tarotOpts.ContractGasPriceOracle.String()).Msg("Error building tarot contract L1 Block instance")
 	}
 
-	abiJson, err := web3.LoadAbi(contract_abi.CONTRACT_ABI_LENDER)
+	lenderAbiJson, err := web3.LoadAbi(contract_abi.CONTRACT_ABI_LENDER)
 	if err != nil {
 		log.Fatal().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error loading Tarot contract_abi")
 	}
 
-	data, err := abiJson.Pack(reinvestFunctionName)
+	lenderData, err := lenderAbiJson.Pack(reinvestFunctionName)
 	if err != nil {
 		log.Fatal().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Failed to pack Tarot contract_abi")
 	}
 
-	// TODO manage cancel for this context ? Set new global context ?
 	callOpts := &bind.CallOpts{
 		Pending:     true,
 		BlockNumber: nil,
@@ -296,11 +296,11 @@ func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.
 	callMsg := ethereum.CallMsg{
 		From:  tarotOpts.Sender,
 		To:    &tarotOpts.ContractLender,
-		Data:  data, // ABI-encoded function call data
+		Data:  lenderData, // ABI-encoded function call lenderData
 		Value: zeroValue,
 	}
 
-	return contractGauge, contractGasPriceOracle, callOpts, callMsg
+	return contractGauge, contractGasPriceOracle, callOpts, callMsg, lenderData
 }
 
 func waitTransaction(ethClient *ethclient.Client, ctx context.Context, tx *types.Transaction, chain models.Chain) {

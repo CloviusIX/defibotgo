@@ -3,15 +3,12 @@ package web3
 import (
 	"context"
 	"crypto/ecdsa"
-	"defibotgo/internal/contract_abi"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
-	"strings"
 )
 
 func GetL1GasFee(
@@ -22,26 +19,12 @@ func GetL1GasFee(
 	gasOpts *GasOpts,
 	contractGasPriceOracle *bind.BoundContract,
 	lenderAddress *common.Address,
-	functionName string,
+	toContractCallData []byte,
 	walletPrivateKey *ecdsa.PrivateKey,
 ) (*big.Int, *types.Transaction, error) {
-	// TODO set set chain though param ?
 	transactionOpts, err := bind.NewKeyedTransactorWithChainID(walletPrivateKey, chainId)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create transaction options: %v", err)
-	}
-
-	// 2) Pack the call data for your function
-	// TODO: get the abi once and pass it though param
-	// TODO:uUse abigen ?
-	parsedABI, err := abi.JSON(strings.NewReader(contract_abi.CONTRACT_ABI_LENDER))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse ABI: %v", err)
-	}
-
-	callData, err := parsedABI.Pack(functionName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate call data: %v", err)
 	}
 
 	// Fetch nonce
@@ -55,7 +38,7 @@ func GetL1GasFee(
 		ChainID:   chainId,
 		Nonce:     nonce,
 		To:        lenderAddress,
-		Data:      callData,
+		Data:      toContractCallData,
 		Gas:       gasOpts.GasLimit,
 		GasTipCap: gasOpts.GasTipCap,
 		GasFeeCap: gasOpts.GasFeeCap,
@@ -75,7 +58,6 @@ func GetL1GasFee(
 	}
 
 	l1Fee, err := EthCall(contractGasPriceOracle, "getL1Fee", callOpts, rlpBytes)
-	//l1Fee, err := contractGasPriceOracle.GetL1GasFee(&bind.CallOpts{Context: ctx}, rlpBytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("oracle.GetL1GasFee: %w", err)
 	}

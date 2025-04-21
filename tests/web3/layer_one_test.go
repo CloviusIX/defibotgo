@@ -18,6 +18,7 @@ func TestGetEstimateL1Fee(t *testing.T) {
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	defer ctxCancel()
 
+	reinvestFunctionName := "reinvest"
 	l1FeeExpected := big.NewInt(16268490247)
 	differenceExpected := float64(-11.507087398437047)
 
@@ -50,13 +51,23 @@ func TestGetEstimateL1Fee(t *testing.T) {
 		t.Fatalf("failed to build contract instance: %v", err)
 	}
 
+	lenderAbiJson, err := web3.LoadAbi(contract_abi.CONTRACT_ABI_LENDER)
+	if err != nil {
+		t.Fatalf("failed to load contract abi: %v", err)
+	}
+
+	lenderData, err := lenderAbiJson.Pack(reinvestFunctionName)
+	if err != nil {
+		t.Fatalf("failed to load lender abi: %v", err)
+	}
+
 	walletPrivateKey := config.GetSecret(config.WalletTestPrivateKey)
 	walletPrivateKeyCiph, errCiph := crypto.HexToECDSA(walletPrivateKey)
 	if errCiph != nil {
 		t.Fatalf("Failed to build Base contract L1 Fee instance: %v", errCiph)
 	}
 
-	l1Fee, _, err := web3.GetL1GasFee(ctx, ethClient, chainId, callOpt, gasOpts, contractGasOracle, &lenderAddress, "reinvest", walletPrivateKeyCiph)
+	l1Fee, _, err := web3.GetL1GasFee(ctx, ethClient, chainId, callOpt, gasOpts, contractGasOracle, &lenderAddress, lenderData, walletPrivateKeyCiph)
 	diff := utils.ComputeDifference(l1FeeExpected, l1Fee)
 
 	if err != nil {
