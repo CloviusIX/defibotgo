@@ -45,11 +45,8 @@ var (
 	gasLimitUsedExpectedMin = uint64(100000)
 )
 
-func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOpts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
-	globalCtx, rootCancel := context.WithCancel(context.Background())
-	defer rootCancel()
-
-	chainId, err := ethClientWriter.ChainID(globalCtx)
+func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOpts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
+	chainID, err := ethClientWriter.ChainID(rootCtx)
 	if err != nil {
 		panic(err)
 	}
@@ -74,6 +71,17 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOp
 	log.Info().Str("contract lender", tarotOpts.ContractLender.Hex()).Msg("Calling contract lender")
 
 	for {
+		select {
+		case <-rootCtx.Done():
+			log.Info().Msg("ctx canceled, exiting tarot.Run")
+			return
+		default:
+			// no cancellation signal, proceed
+		}
+
+		iterCtx, loopCancel := context.WithTimeout(rootCtx, time.Second*10)
+		callOpts.Context = iterCtx
+
 		// Keep the code in a block to avoid overhead from additional function calls (optimizing execution time)
 		tarotCalculationOpts := &TarotCalculationOpts{}
 		var wg sync.WaitGroup
@@ -105,6 +113,7 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOp
 				AnErr("rewardPairError", tarotCalculationOpts.RewardPair.Err).
 				AnErr("priorityFeeError", tarotCalculationOpts.PriorityFee.Err).
 				Msg("Failed to calculate transaction parameters")
+			loopCancel()
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
@@ -121,16 +130,20 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOp
 		isL2Worth, l2GasOpts, rewardEth, err := GetL2TransactionGasFees(tarotOpts, tarotCalculationOpts, priorityFeeExtraPercent, gasLimitExtraPercent)
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error getting gas on Tarot")
+			loopCancel()
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
 
 		if !isL2Worth {
+			loopCancel()
 			time.Sleep(utils.RetryMainSleep)
+			continue
 		}
 
 		// Estimate L1 gas fee
-		isWorth, signedTx, err := getL1TransactionGasFees(globalCtx, ethClient, chainId, callOpts, l2GasOpts, tarotOpts, contractGasPriceOracle, rewardEth, walletPrivateKey)
+		isWorth, signedTx, err := getL1TransactionGasFees(iterCtx, ethClient, chainID, callOpts, l2GasOpts, tarotOpts, contractGasPriceOracle, rewardEth, walletPrivateKey)
+		loopCancel()
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error getting l1 gas fee")
 			time.Sleep(utils.RetryErrorSleep)
@@ -144,15 +157,20 @@ func Run(ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOp
 		}
 
 		// Send transaction on chain
-		err = ethClientWriter.SendTransaction(globalCtx, signedTx)
+		txCtx, txCancel := context.WithTimeout(rootCtx, time.Second*20)
+		err = ethClientWriter.SendTransaction(txCtx, signedTx)
 
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Failed to send transaction on Tarot")
+			txCancel()
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
 
-		processTransactionResult(ethClient, signedTx, tarotOpts.Chain)
+		waitTransaction(ethClient, txCtx, signedTx, tarotOpts.Chain)
+
+		// free resources
+		txCancel()
 	}
 }
 
@@ -241,6 +259,11 @@ func ComputeReward(vaultPendingReward *big.Int, reinvestBounty *big.Int) *big.In
 	return bounty
 }
 
+// buildOpts initializes and returns the contract bindings and call options
+// for interacting with the Tarot Gauge and Gas Price Oracle contracts.
+// Note: The returned CallOpts.Context must be set manually by the caller
+//
+//	(e.g., using context.WithTimeout or context.WithCancel) before use.
 func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.BoundContract, *bind.BoundContract, *bind.CallOpts, ethereum.CallMsg) {
 	contractGauge, err := web3.BuildContractInstance(ethClient, tarotOpts.ContractGauge, contract_abi.CONTRACT_ABI_GAUGE)
 	if err != nil {
@@ -266,7 +289,7 @@ func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.
 	callOpts := &bind.CallOpts{
 		Pending:     true,
 		BlockNumber: nil,
-		Context:     context.Background(),
+		// the context must set manually after calling this function
 	}
 
 	// Create a message to simulate the transaction
@@ -280,13 +303,11 @@ func buildOpts(ethClient *ethclient.Client, tarotOpts *models.TarotOpts) (*bind.
 	return contractGauge, contractGasPriceOracle, callOpts, callMsg
 }
 
-func processTransactionResult(ethClient *ethclient.Client, tx *types.Transaction, chain models.Chain) {
+func waitTransaction(ethClient *ethclient.Client, ctx context.Context, tx *types.Transaction, chain models.Chain) {
 	log.Info().Str("hash", tx.Hash().Hex()).Msg("Sent transaction on Tarot")
 
 	// Wait for the transaction's validation
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	receipt, err := bind.WaitMined(ctx, ethClient, tx)
-	cancel() // Immediately call cancel to free up resources
 
 	if err != nil {
 		log.Error().Err(err).Str("chain", string(chain)).Msg("Failed to wait for receipt on Tarot")
