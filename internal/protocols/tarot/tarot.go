@@ -81,7 +81,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 			// no cancellation signal, proceed
 		}
 
-		iterCtx, loopCancel := context.WithTimeout(rootCtx, time.Second*10)
+		iterCtx, iterCancelCtx := context.WithTimeout(rootCtx, time.Second*5)
 		callOpts.Context = iterCtx
 
 		// Keep the code in a block to avoid overhead from additional function calls (optimizing execution time)
@@ -115,7 +115,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 				AnErr("rewardPairError", tarotCalculationOpts.RewardPair.Err).
 				AnErr("priorityFeeError", tarotCalculationOpts.PriorityFee.Err).
 				Msg("Failed to calculate transaction parameters")
-			loopCancel()
+			iterCancelCtx()
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
@@ -132,20 +132,20 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		isL2Worth, l2GasOpts, rewardEth, err := GetL2TransactionGasFees(tarotOpts, tarotCalculationOpts, priorityFeeExtraPercent, gasLimitExtraPercent)
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error getting gas on Tarot")
-			loopCancel()
+			iterCancelCtx()
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
 
 		if !isL2Worth {
-			loopCancel()
+			iterCancelCtx()
 			time.Sleep(utils.RetryMainSleep)
 			continue
 		}
 
 		// Estimate L1 gas fee
 		isWorth, signedTx, err := getL1TransactionGasFees(iterCtx, ethClient, chainID, callOpts, l2GasOpts, tarotOpts, contractGasPriceOracle, lenderCallData, rewardEth, walletPrivateKey)
-		loopCancel()
+		iterCancelCtx()
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Error getting l1 gas fee")
 			time.Sleep(utils.RetryErrorSleep)
@@ -159,12 +159,12 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		}
 
 		// Send transaction on chain
-		txCtx, txCancel := context.WithTimeout(rootCtx, time.Second*20)
+		txCtx, txCancelCtx := context.WithTimeout(rootCtx, time.Second*20)
 		err = ethClientWriter.SendTransaction(txCtx, signedTx)
 
 		if err != nil {
 			log.Error().Err(err).Str("chain", string(tarotOpts.Chain)).Msg("Failed to send transaction on Tarot")
-			txCancel()
+			txCancelCtx()
 			time.Sleep(utils.RetryErrorSleep)
 			continue
 		}
@@ -172,7 +172,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		waitTransaction(ethClient, txCtx, signedTx, tarotOpts.Chain)
 
 		// free resources
-		txCancel()
+		txCancelCtx()
 	}
 }
 
