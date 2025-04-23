@@ -204,7 +204,8 @@ func GetL2TransactionGasFees(
 	rewardEth := utils.ConvertToEth(rewardToken, tarotCalculationOpts.RewardPairValue)
 
 	gasOpts := web3.BuildTransactionFeeArgs(tarotCalculationOpts.BaseFeeValue, newPriorityFee, tarotCalculationOpts.EstimateGasLimitValue)
-	isWorth := utils.ComputeDifference(rewardEth, gasOpts.TransactionFee) > 0
+	diff := utils.ComputeDifference(rewardEth, gasOpts.TransactionFee)
+	isWorth := diff > -10
 
 	log.Info().Str("vault pending reward", tarotCalculationOpts.VaultPendingRewardValue.String()).
 		Str("reward erc20", rewardToken.String()).
@@ -215,6 +216,7 @@ func GetL2TransactionGasFees(
 		Str("priority fee", gasOpts.GasTipCap.String()).
 		Uint64("gas limit", gasOpts.GasLimit).
 		Str("reward pair", tarotCalculationOpts.RewardPairValue.String()).
+		Float64("l2 diff", diff).
 		Msg("")
 
 	// Increase gas limit to ensure the success of the transaction
@@ -242,12 +244,12 @@ func getL1TransactionGasFees(
 
 	// The gas-price oracle may apply an extra buffer in the final block
 	// to account for last‑second basefee volatility.
-	scaledL1GasFee := utils.DecreaseAmount(l1GasFee, 10)
+	scaledL1GasFee := utils.DecreaseAmount(l1GasFee, 12)
 	transactionFee := new(big.Int).Add(gasOpts.TransactionFee, scaledL1GasFee)
 	diff := utils.ComputeDifference(rewardEth, transactionFee)
 
 	isWorth := diff > tarotOpts.ProfitableThreshold
-	log.Info().Str("l1GasFee", l1GasFee.String()).Str("scaledL1GasFee", scaledL1GasFee.String()).Str("transaction fee", transactionFee.String()).Float64("diff", diff).Msg("")
+	log.Info().Str("l1GasFee", l1GasFee.String()).Str("scaledL1GasFee", scaledL1GasFee.String()).Str("transaction fee", transactionFee.String()).Float64("l1 diff", diff).Msg("")
 
 	return isWorth, signedTx, nil
 }
