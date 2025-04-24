@@ -63,13 +63,13 @@ func TestComputeRewardOnChain(t *testing.T) {
 
 func TestGetTransactionGasFees(t *testing.T) {
 	chain := models.Base
-	priorityFeeIncreasePercent := 0
+	//priorityFeeIncreasePercent := 0
 	gasLimitExtraPercent := uint64(0)
 
-	transactionFeeExpected := big.NewInt(994396562432)
+	transactionFeeExpected := big.NewInt(813970887184)
 	gasLimitExpected := uint64(426244)
-	gasFeeExpected := big.NewInt(2332928)
-	gasTipExpected := big.NewInt(428970)
+	gasFeeExpected := big.NewInt(1909636)
+	gasTipExpected := big.NewInt(5678)
 
 	protocolOpts := &models.TarotOpts{
 		ReinvestBounty: big.NewInt(20000000000000000),
@@ -91,7 +91,7 @@ func TestGetTransactionGasFees(t *testing.T) {
 	isWorth, gasOpts, _, err := tarot.GetL2TransactionGasFees(
 		protocolOpts,
 		tarotCalculationOpts,
-		priorityFeeIncreasePercent,
+		//priorityFeeIncreasePercent,
 		gasLimitExtraPercent,
 	)
 
