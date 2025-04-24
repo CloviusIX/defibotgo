@@ -11,7 +11,6 @@ type TarotOpts struct {
 	ProfitableThreshold     float64
 	ReinvestBounty          *big.Int
 	PriorityFee             *big.Int
-	BlockRangeFilter        *big.Int
 	Sender                  common.Address
 	ContractLender          common.Address
 	ContractGauge           common.Address

@@ -184,7 +184,7 @@ func GetL2TransactionGasFees(
 ) (bool, *web3.GasOpts, *big.Int, error) {
 	// Gas limit is too low to be correct
 	if tarotCalculationOpts.EstimateGasLimitValue < gasLimitUsedExpectedMin {
-		return false, nil, nil, fmt.Errorf("estimated gas limit is too low => skip")
+		return false, nil, nil, nil
 	}
 
 	// Set new priority fee depending on competitors
@@ -193,11 +193,12 @@ func GetL2TransactionGasFees(
 		return false, nil, nil, fmt.Errorf("priority fee is set to 0")
 	}
 
-	newPriorityFee_ := tarotCalculationOpts.PriorityFeeValue
-	if tarotOpts.PriorityFee.Cmp(tarotCalculationOpts.PriorityFeeValue) == 1 {
-		// Use the highest priority fee for the transaction
-		newPriorityFee_ = tarotOpts.PriorityFee
-	}
+	newPriorityFee_ := tarotOpts.PriorityFee
+	//newPriorityFee_ := tarotCalculationOpts.PriorityFeeValue
+	//if tarotOpts.PriorityFee.Cmp(tarotCalculationOpts.PriorityFeeValue) == 1 {
+	//	// Use the highest priority fee for the transaction
+	//	newPriorityFee_ = tarotOpts.PriorityFee
+	//}
 
 	newPriorityFee := utils.IncreaseAmount(newPriorityFee_, priorityFeeExtraPercent)
 	rewardToken := ComputeReward(tarotCalculationOpts.VaultPendingRewardValue, tarotOpts.ReinvestBounty)

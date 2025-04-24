@@ -87,11 +87,6 @@ func EstimateGasAsync(ethClient *ethclient.Client, msg ethereum.CallMsg, cache *
 		return
 	}
 
-	if estimateGas <= 100000 {
-		ch <- models.GasLimitResult{Value: 0, Err: fmt.Errorf("estimage gas is too low %d", estimateGas)}
-		return
-	}
-
 	cache.SetWithTTL(cacheKey, estimateGas, 1, utils.CacheTime)
 	ch <- models.GasLimitResult{Value: estimateGas, Err: nil}
 }

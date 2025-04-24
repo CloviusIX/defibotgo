@@ -72,13 +72,12 @@ func TestGetTransactionGasFees(t *testing.T) {
 	gasTipExpected := big.NewInt(428970)
 
 	protocolOpts := &models.TarotOpts{
-		ReinvestBounty:   big.NewInt(20000000000000000),
-		PriorityFee:      big.NewInt(5678),
-		BlockRangeFilter: big.NewInt(20),
-		Sender:           common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
-		Chain:            chain,
-		ContractLender:   common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9"),
-		ContractGauge:    common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360"),
+		ReinvestBounty: big.NewInt(20000000000000000),
+		PriorityFee:    big.NewInt(5678),
+		Sender:         common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
+		Chain:          chain,
+		ContractLender: common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9"),
+		ContractGauge:  common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360"),
 	}
 
 	//https://basescan.org/tx/0x93efd0f572de355f5cd34120af45360cc1d22765df8ae7fe91528ff2801b210b
