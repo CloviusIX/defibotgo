@@ -36,6 +36,22 @@ func IncreaseAmount(value *big.Int, percent int) *big.Int {
 	return result
 }
 
+// DecreaseAmount adds a given percentage to the original *big.Int value.
+// For example, if the value is 1000 and percent is 25, the function returns 1250.
+func DecreaseAmount(value *big.Int, percent int) *big.Int {
+	// Convert percent to a *big.Int
+	percentage := big.NewInt(int64(percent))
+
+	// Calculate the additional percentage amount
+	decrease := new(big.Int).Mul(value, percentage)
+	decrease.Div(decrease, big.NewInt(100))
+
+	// Add the increase to the original value
+	result := new(big.Int).Sub(value, decrease)
+
+	return result
+}
+
 // RandomNumberInRange generates a random int64 number between min and max (inclusive).
 func RandomNumberInRange(min int, max int) int {
 	if min >= max {

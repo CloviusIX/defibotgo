@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"defibotgo/internal/config"
 	"defibotgo/internal/models"
 	protocolconfig "defibotgo/internal/protocols/config"
@@ -10,7 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 )
 
 var validChains = map[models.Chain]bool{
@@ -19,7 +24,7 @@ var validChains = map[models.Chain]bool{
 }
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimeFieldFormat = time.DateTime
 
 	var protocol *models.TarotOpts
 	var protocolErr error
@@ -59,7 +64,9 @@ func main() {
 		log.Fatal().Err(err).Msg("Error getting protocol")
 	}
 
-	tarot.Run(ethClient, ethClientWriter, protocol, walletPrivateKeyCiph)
+	rootCtx, rootCancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer rootCancel()
+	tarot.Run(rootCtx, ethClient, ethClientWriter, protocol, walletPrivateKeyCiph)
 }
 
 // getChain retrieves and validates the blockchain chain parameter from command-line flags.

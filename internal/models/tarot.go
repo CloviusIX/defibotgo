@@ -6,11 +6,13 @@ import (
 )
 
 type TarotOpts struct {
-	ReinvestBounty   *big.Int
-	PriorityFee      *big.Int
-	BlockRangeFilter *big.Int
-	Chain            Chain
-	Sender           common.Address
-	ContractLender   common.Address
-	ContractGauge    common.Address
+	ExtraPriorityFeePercent [2]int // [min %, max %]
+	Chain                   Chain
+	ProfitableThreshold     float64
+	ReinvestBounty          *big.Int
+	PriorityFee             *big.Int
+	Sender                  common.Address
+	ContractLender          common.Address
+	ContractGauge           common.Address
+	ContractGasPriceOracle  common.Address
 }

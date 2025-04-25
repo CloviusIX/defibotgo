@@ -2,8 +2,8 @@ package protocols
 
 import (
 	"context"
-	"defibotgo/internal/abi"
 	"defibotgo/internal/config"
+	"defibotgo/internal/contract_abi"
 	"defibotgo/internal/models"
 	"defibotgo/internal/protocols/tarot"
 	"defibotgo/internal/utils"
@@ -45,7 +45,7 @@ func TestComputeRewardOnChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build web3 client: %v", err)
 	}
-	contractGauge, err := web3.BuildContractInstance(ethClient, contractGaugeAddress, abi.CONTRACT_ABI_GAUGE)
+	contractGauge, err := web3.BuildContractInstance(ethClient, contractGaugeAddress, contract_abi.CONTRACT_ABI_GAUGE)
 	if err != nil {
 		t.Fatalf("failed to build contract instance: %v", err)
 	}
@@ -63,22 +63,21 @@ func TestComputeRewardOnChain(t *testing.T) {
 
 func TestGetTransactionGasFees(t *testing.T) {
 	chain := models.Base
-	priorityFeeIncreasePercent := 0
+	//priorityFeeIncreasePercent := 0
 	gasLimitExtraPercent := uint64(0)
 
-	transactionFeeExpected := big.NewInt(994396562432)
+	transactionFeeExpected := big.NewInt(813970887184)
 	gasLimitExpected := uint64(426244)
-	gasFeeExpected := big.NewInt(2332928)
-	gasTipExpected := big.NewInt(428970)
+	gasFeeExpected := big.NewInt(1909636)
+	gasTipExpected := big.NewInt(5678)
 
 	protocolOpts := &models.TarotOpts{
-		ReinvestBounty:   big.NewInt(20000000000000000),
-		PriorityFee:      big.NewInt(5678),
-		BlockRangeFilter: big.NewInt(20),
-		Sender:           common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
-		Chain:            chain,
-		ContractLender:   common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9"),
-		ContractGauge:    common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360"),
+		ReinvestBounty: big.NewInt(20000000000000000),
+		PriorityFee:    big.NewInt(5678),
+		Sender:         common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
+		Chain:          chain,
+		ContractLender: common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9"),
+		ContractGauge:  common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360"),
 	}
 
 	//https://basescan.org/tx/0x93efd0f572de355f5cd34120af45360cc1d22765df8ae7fe91528ff2801b210b
@@ -89,10 +88,10 @@ func TestGetTransactionGasFees(t *testing.T) {
 	tarotCalculationOpts.EstimateGasLimitValue = 426244
 	tarotCalculationOpts.PriorityFeeValue = big.NewInt(428970)
 
-	isWorth, gasOpts, err := tarot.GetTransactionGasFees(
+	isWorth, gasOpts, _, err := tarot.GetL2TransactionGasFees(
 		protocolOpts,
 		tarotCalculationOpts,
-		priorityFeeIncreasePercent,
+		//priorityFeeIncreasePercent,
 		gasLimitExtraPercent,
 	)
 
