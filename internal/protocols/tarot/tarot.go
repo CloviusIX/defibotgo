@@ -45,8 +45,6 @@ var (
 )
 
 func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *ethclient.Client, tarotOpts *models.TarotOpts, walletPrivateKey *ecdsa.PrivateKey) {
-	log.Info().Msgf("Starting Tarot calculation on %s", tarotOpts.Chain)
-
 	chainID, err := ethClientWriter.ChainID(rootCtx)
 	if err != nil {
 		panic(err)

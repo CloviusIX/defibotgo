@@ -11,10 +11,10 @@ setup:
 	go mod tidy
 
 run: build
-	APP_ENV=development ./$(BINARY_NAME) -chain=$(CHAIN)
+	APP_ENV=development ./$(BINARY_NAME) -chain=$(CHAIN) -protocol=$(PROTOCOL) -pool=$(POOL)
 
 rundev:
-	APP_ENV=development go run main.go -chain=$(CHAIN)
+	APP_ENV=development go run main.go -chain=$(CHAIN) -protocol=$(PROTOCOL) -pool=$(POOL)
 
 test:
 	APP_ENV=test go test ./tests/... -v
