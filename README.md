@@ -4,6 +4,7 @@ DefiBot is a self-project to explore DeFi (Decentralized Finance) opportunities 
 
 ## 🔍 Opportunities
 - Interacting with Tarot in order to harvest the fee.
+- Interacting with Impermax in order to harvest the fee.
 
 ## 📋 Prerequisites
 
@@ -22,6 +23,8 @@ Create a file .env in the root directory with the following content:
 ```
 ACCOUNT_PRIVATE_KEY_TAROT_ONE_0XB8=<your_wallet_private_key>
 ACCOUNT_SENDER_ADDRESS_TAROT_ONE_0XB8=<your_wallet_address>
+ACCOUNT_PRIVATE_KEY_IMPERMAX_ONE_0XAE=<your_wallet_private_key>
+ACCOUNT_SENDER_ADDRESS_IMPERMAX_ONE_0XAE=<your_wallet_address>
 RPC_NODE_OPTIMISM_READ=<your_optimism_reading_rpc_node>
 RPC_NODE_OPTIMISM_WRITE=<your_optimism_writing_rpc_node>
 RPC_NODE_BASE_READ=<your_base_reading_rpc_node>
