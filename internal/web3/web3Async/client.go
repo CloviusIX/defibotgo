@@ -36,6 +36,36 @@ func EthCallAsync(contract *bind.BoundContract, functionName string, callOpts *b
 	ch <- models.WeiResult{Value: result, Err: nil}
 }
 
+// EthCallWithCacheAsync asynchronously calls a view (read-only) function on a smart contract and sends the result
+// through a channel for concurrent processing.
+//
+// Parameters:
+//   - contract: The smart contract instance to call the view function on.
+//   - functionName: The name of the view function to invoke.
+//   - callOpts: Options specifying the block number and context for the contract call.
+//   - cache: A cache instance to store the base fee per gas, reducing redundant lookups.
+//   - cacheKey: A unique string key used to store and retrieve the base fee in the cache.
+//   - ch: A channel to send the result as a `models.WeiResult`, which includes the output value and any error encountered.
+//   - wg: A WaitGroup used to signal completion of this asynchronous operation to the caller.
+//   - params: Additional parameters required by the view function.
+func EthCallWithCacheAsync(contract *bind.BoundContract, functionName string, callOpts *bind.CallOpts, cache *ristretto.Cache, cacheKey string, ch chan models.WeiResult, wg *sync.WaitGroup, params ...interface{}) {
+	defer wg.Done()
+	if cacheResult, found := cache.Get(cacheKey); found {
+		ch <- models.WeiResult{Value: cacheResult.(*big.Int), Err: nil}
+		return
+	}
+
+	result, err := web3.EthCall(contract, functionName, callOpts, params...)
+
+	if err != nil {
+		ch <- models.WeiResult{Value: nil, Err: fmt.Errorf("failed to call contract function %s: %v", functionName, err)}
+		return
+	}
+
+	cache.SetWithTTL(cacheKey, result, 1, utils.CacheTime)
+	ch <- models.WeiResult{Value: result, Err: nil}
+}
+
 // GetBaseFeePerGasAsync asynchronously retrieves the base fee per gas for a specified block and caches the result
 // to avoid redundant blockchain queries.
 //

@@ -9,8 +9,10 @@ type TarotOpts struct {
 	ExtraPriorityFeePercent [2]int // [min %, max %]
 	Chain                   Chain
 	ProfitableThreshold     float64
+	GasUsedDefault          uint64
 	ReinvestBounty          *big.Int
 	PriorityFee             *big.Int
+	RewardRate              *big.Int
 	Sender                  common.Address
 	ContractLender          common.Address
 	ContractGauge           common.Address
