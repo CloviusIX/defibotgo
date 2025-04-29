@@ -22,19 +22,20 @@ import (
 	"time"
 )
 
-type TarotCalculationOpts struct {
-	VaultPendingReward models.WeiResult
-	BaseFeePerGas      models.WeiResult
-	EstimateGasLimit   models.GasLimitResult
-	RewardPair         models.WeiResult
-	PriorityFee        models.WeiResult
+type ProtocolCalculationOpts struct {
+	// Hot/Cached fields
+	VaultPendingRewardValue *big.Int //  8 bytes
+	BaseFeeValue            *big.Int //  8 bytes
+	RewardPairValue         *big.Int //  8 bytes
+	PriorityFeeValue        *big.Int //  8 bytes
+	EstimateGasLimitValue   uint64   //  8 bytes
 
-	// Cached fields for direct access (populated after error checking)
-	EstimateGasLimitValue   uint64
-	VaultPendingRewardValue *big.Int
-	BaseFeeValue            *big.Int
-	RewardPairValue         *big.Int
-	PriorityFeeValue        *big.Int
+	// “Cold” result structs
+	VaultPendingReward models.WeiResult      // 24 bytes
+	BaseFeePerGas      models.WeiResult      // 24 bytes
+	RewardPair         models.WeiResult      // 24 bytes
+	PriorityFee        models.WeiResult      // 24 bytes
+	EstimateGasLimit   models.GasLimitResult // 24 bytes
 }
 
 var (
@@ -88,7 +89,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		callOpts.Context = iterCtx
 
 		// Keep the code in a block to avoid overhead from additional function calls (optimizing execution time)
-		tarotCalculationOpts := &TarotCalculationOpts{}
+		tarotCalculationOpts := &ProtocolCalculationOpts{}
 		var wg sync.WaitGroup
 		wg.Add(7)
 
@@ -189,7 +190,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 
 func GetL2TransactionGasFees(
 	tarotOpts *models.TarotOpts,
-	tarotCalculationOpts *TarotCalculationOpts,
+	tarotCalculationOpts *ProtocolCalculationOpts,
 	priorityFeeExtraPercent int,
 	gasLimitExtraPercent uint64,
 ) (bool, *web3.GasOpts, *big.Int, error) {

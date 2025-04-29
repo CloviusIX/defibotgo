@@ -104,7 +104,7 @@ func TestGetTransactionGasFees(t *testing.T) {
 	}
 
 	//https://basescan.org/tx/0x93efd0f572de355f5cd34120af45360cc1d22765df8ae7fe91528ff2801b210b
-	tarotCalculationOpts := &tarot.TarotCalculationOpts{}
+	tarotCalculationOpts := &tarot.ProtocolCalculationOpts{}
 	tarotCalculationOpts.VaultPendingRewardValue = big.NewInt(276513852697572252)
 	tarotCalculationOpts.RewardPairValue = big.NewInt(269300000000000)
 	tarotCalculationOpts.BaseFeeValue = big.NewInt(1903958)
