@@ -21,10 +21,10 @@ DefiBot is a self-project to explore DeFi (Decentralized Finance) opportunities 
 Create a file .env in the root directory with the following content:
 
 ```
-ACCOUNT_PRIVATE_KEY_TAROT_ONE_0XB8=<your_wallet_private_key>
-ACCOUNT_SENDER_ADDRESS_TAROT_ONE_0XB8=<your_wallet_address>
-ACCOUNT_PRIVATE_KEY_IMPERMAX_ONE_0XAE=<your_wallet_private_key>
-ACCOUNT_SENDER_ADDRESS_IMPERMAX_ONE_0XAE=<your_wallet_address>
+ACCOUNT_PRIVATE_KEY_TAROT_ONE=<your_wallet_private_key>
+ACCOUNT_SENDER_ADDRESS_TAROT_ONE=<your_wallet_address>
+ACCOUNT_PRIVATE_KEY_IMPERMAX_ONE=<your_wallet_private_key>
+ACCOUNT_SENDER_ADDRESS_IMPERMAX_ONE=<your_wallet_address>
 RPC_NODE_OPTIMISM_READ=<your_optimism_reading_rpc_node>
 RPC_NODE_OPTIMISM_WRITE=<your_optimism_writing_rpc_node>
 RPC_NODE_BASE_READ=<your_base_reading_rpc_node>
@@ -36,7 +36,7 @@ RPC_NODE_BASE_WRITE=<your_base_writing_rpc_node>
 Initialize the project and install dependencies:
 
 ```
-make setup
+make
 ```
 
 ### Run
@@ -44,7 +44,9 @@ make setup
 Start the application in production mode:
 
 ```
-make run
+make run CHAIN=<chain_name> PROTOCOL=<protocol_name> POOL=<pool_name>
+make run CHAIN=base PROTOCOL=tarot POOL=USDC_AERO
+make run CHAIN=base PROTOCOL=impermax POOL=fbomb_cbbtc
 ```
 
 ### Development Mode
@@ -52,7 +54,7 @@ make run
 Run the application without building for faster development cycles:
 
 ```
-make rundev
+make rundev CHAIN=<chain_name> PROTOCOL=<protocol_name> POOL=<pool_name>
 ```
 
 ### Code Quality
