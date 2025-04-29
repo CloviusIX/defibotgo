@@ -48,10 +48,10 @@ func loadSecrets() {
 			RpcNodeBaseWriteKey:      getEnvOrFatal("RPC_NODE_BASE_WRITE"),
 			RpcNodeOptimismReadKey:   getEnvOrFatal("RPC_NODE_OPTIMISM_READ"),
 			RpcNodeOptimismWriteKey:  getEnvOrFatal("RPC_NODE_OPTIMISM_WRITE"),
-			WalletTarotKeyOne:        getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_ONE_0XB8"),
-			WalletTarotAddressOne:    getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE_0XB8"),
-			WalletImpermaxKeyOne:     getEnvOrFatal("ACCOUNT_PRIVATE_KEY_IMPERMAX_ONE_0XAE"),
-			WalletImpermaxAddressOne: getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_IMPERMAX_ONE_0XAE"),
+			WalletTarotKeyOne:        getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_ONE"),
+			WalletTarotAddressOne:    getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE"),
+			WalletImpermaxKeyOne:     getEnvOrFatal("ACCOUNT_PRIVATE_KEY_IMPERMAX_ONE"),
+			WalletImpermaxAddressOne: getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_IMPERMAX_ONE"),
 		}
 	}
 }
