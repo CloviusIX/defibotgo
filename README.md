@@ -44,7 +44,9 @@ make
 Start the application in production mode:
 
 ```
-make run
+make run CHAIN=<chain_name> PROTOCOL=<protocol_name> POOL=<pool_name>
+make run CHAIN=base PROTOCOL=tarot POOL=USDC_AERO
+make run CHAIN=base PROTOCOL=impermax POOL=fbomb_cbbtc
 ```
 
 ### Development Mode
@@ -52,7 +54,7 @@ make run
 Run the application without building for faster development cycles:
 
 ```
-make rundev
+make rundev CHAIN=<chain_name> PROTOCOL=<protocol_name> POOL=<pool_name>
 ```
 
 ### Code Quality
