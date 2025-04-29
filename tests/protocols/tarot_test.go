@@ -14,10 +14,10 @@ import (
 	"testing"
 )
 
-var reinvestBounty = big.NewInt(10000000000000000)
+var reinvestBounty = big.NewInt(20000000000000000)
 
 func TestComputeRewardToEth(t *testing.T) {
-	expected := big.NewInt(254066218156)
+	expected := big.NewInt(508132436312)
 
 	vaultPendingReward := big.NewInt(795946798735693857)
 	pairValue := big.NewInt(31920000000000)
@@ -33,7 +33,7 @@ func TestComputeRewardOnChain(t *testing.T) {
 	chain := models.Base
 	contractLenderAddress := common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9")
 	contractGaugeAddress := common.HexToAddress("0x4f09bab2f0e15e2a078a227fe1537665f55b8360")
-	rewardExpected := big.NewInt(1224339779173138)
+	rewardExpected := big.NewInt(2448679558346277)
 
 	callOpts := &bind.CallOpts{
 		Pending:     false,
@@ -61,9 +61,32 @@ func TestComputeRewardOnChain(t *testing.T) {
 	}
 }
 
+func TestGetVaultPendingReward(t *testing.T) {
+	//https://basescan.org/tx/0x557f720fe6c3e091f62615e6415c7caaef92eef914b2fc44cbca5e7e156bd31c
+	//blockNumber := big.NewInt(29525546)
+	balance := big.NewInt(10547979589919134)
+	totalSupply := big.NewInt(608561762745652518)
+	earned := big.NewInt(891792427871174773)
+	rewardRate := big.NewInt(1071909015217126497)
+	secondInterval := int64(2)
+
+	expectedVaultPendingReward := big.NewInt(928950445699140388)
+	expectedReward := big.NewInt(18579008913982807)
+
+	estimateEarned := tarot.GetVaultPendingReward(earned, rewardRate, secondInterval, balance, totalSupply)
+	estimateReward := tarot.ComputeReward(estimateEarned, reinvestBounty)
+	if estimateEarned.Cmp(expectedVaultPendingReward) != 0 {
+		t.Fatalf("the estimation of Earned is inccorect: expecting %v got %v", expectedVaultPendingReward, estimateEarned)
+	}
+
+	if estimateReward.Cmp(expectedReward) != 0 {
+		t.Fatalf("the estimation of reward is incorrect: expecting %v got %v", expectedReward, estimateReward)
+	}
+}
+
 func TestGetTransactionGasFees(t *testing.T) {
 	chain := models.Base
-	//priorityFeeIncreasePercent := 0
+	priorityFeeIncreasePercent := 0
 	gasLimitExtraPercent := uint64(0)
 
 	transactionFeeExpected := big.NewInt(813970887184)
@@ -72,7 +95,7 @@ func TestGetTransactionGasFees(t *testing.T) {
 	gasTipExpected := big.NewInt(5678)
 
 	protocolOpts := &models.TarotOpts{
-		ReinvestBounty: big.NewInt(20000000000000000),
+		ReinvestBounty: reinvestBounty,
 		PriorityFee:    big.NewInt(5678),
 		Sender:         common.HexToAddress(config.GetSecret(config.WalletTestPrivateKey)),
 		Chain:          chain,
@@ -86,12 +109,12 @@ func TestGetTransactionGasFees(t *testing.T) {
 	tarotCalculationOpts.RewardPairValue = big.NewInt(269300000000000)
 	tarotCalculationOpts.BaseFeeValue = big.NewInt(1903958)
 	tarotCalculationOpts.EstimateGasLimitValue = 426244
-	tarotCalculationOpts.PriorityFeeValue = big.NewInt(428970)
+	tarotCalculationOpts.PriorityFeeValue = big.NewInt(5678)
 
 	isWorth, gasOpts, _, err := tarot.GetL2TransactionGasFees(
 		protocolOpts,
 		tarotCalculationOpts,
-		//priorityFeeIncreasePercent,
+		priorityFeeIncreasePercent,
 		gasLimitExtraPercent,
 	)
 

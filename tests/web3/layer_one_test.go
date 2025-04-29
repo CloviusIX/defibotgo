@@ -68,11 +68,11 @@ func TestGetEstimateL1Fee(t *testing.T) {
 	}
 
 	l1Fee, _, err := web3.GetL1GasFee(ctx, ethClient, chainId, callOpt, gasOpts, contractGasOracle, &lenderAddress, lenderData, walletPrivateKeyCiph)
-	diff := utils.ComputeDifference(l1FeeExpected, l1Fee)
-
 	if err != nil {
 		t.Fatalf("failed to get estimate l1 fee: %v", err)
 	}
+
+	diff := utils.ComputeDifference(l1FeeExpected, l1Fee)
 
 	if diff != differenceExpected {
 		t.Fatalf("estimateL1Fee failed, expected %v, got %v with a difference too big %v", l1FeeExpected, l1Fee, diff)
