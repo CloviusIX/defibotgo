@@ -36,7 +36,7 @@ RPC_NODE_BASE_WRITE=<your_base_writing_rpc_node>
 Initialize the project and install dependencies:
 
 ```
-make setup
+make
 ```
 
 ### Run
