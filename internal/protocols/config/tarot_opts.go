@@ -10,7 +10,7 @@ import (
 var TarotBaseUsdcAero = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
 	PriorityFee:             big.NewInt(56780),
-	RewardRate:              big.NewInt(1071909015217126497),
+	RewardRate:              big.NewInt(1059238100440517689), // from gauge contract
 	ProfitableThreshold:     -6,
 	GasUsedDefault:          426244,
 	ExtraPriorityFeePercent: [2]int{8, 20},
@@ -24,7 +24,7 @@ var TarotBaseUsdcAero = models.TarotOpts{
 var TarotOptimismUsdcTarot = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
 	PriorityFee:             big.NewInt(56780),
-	RewardRate:              big.NewInt(1071909015217126497),
+	RewardRate:              big.NewInt(1059238100440517689),
 	ProfitableThreshold:     -6,
 	GasUsedDefault:          426244,
 	ExtraPriorityFeePercent: [2]int{8, 20},

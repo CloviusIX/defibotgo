@@ -10,7 +10,7 @@ import (
 var ImpermaxBaseSTKDUNIV2 = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(int64(20000000000000000)),
 	PriorityFee:             big.NewInt(56780),
-	RewardRate:              big.NewInt(96262220291333273),
+	RewardRate:              big.NewInt(93664075495937229),
 	ProfitableThreshold:     -6,
 	GasUsedDefault:          770819,
 	ExtraPriorityFeePercent: [2]int{15, 25},
