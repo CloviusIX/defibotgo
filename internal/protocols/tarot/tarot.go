@@ -73,14 +73,32 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 	balanceChan := make(chan models.WeiResult, 1)
 	totalSupplyChan := make(chan models.WeiResult, 1)
 
+	rateRewardChan := make(chan *big.Int, 1)
+
 	contractGauge, contractGasPriceOracle, callOpts, callMsg, lenderCallData := buildOpts(ethClient, tarotOpts)
 	minExtraPriorityFeePercent, maxExtraPriorityFeePercent := tarotOpts.ExtraPriorityFeePercent[0], tarotOpts.ExtraPriorityFeePercent[1]
+	rewardRate := tarotOpts.RewardRate
+
+	// get the reward rate every 10 minutes
+	rateRewardCallOpts := &bind.CallOpts{
+		Pending:     callOpts.Pending,
+		BlockNumber: callOpts.BlockNumber,
+		From:        callOpts.From,
+		Context:     rootCtx,
+	}
+	go startRateRewardFetcher(rootCtx, contractGauge, "rewardRate", rateRewardCallOpts, 10*time.Minute, rateRewardChan)
 
 	for {
 		select {
 		case <-rootCtx.Done():
 			log.Info().Msg("ctx canceled, exiting tarot.Run")
 			return
+		case rr := <-rateRewardChan:
+			rewardRate = rr
+			log.Debug().
+				Str("chain", string(tarotOpts.Chain)).
+				Str("newRateReward", rr.String()).
+				Msg("updated rewardRate")
 		default:
 			// no cancellation signal, proceed
 		}
@@ -133,7 +151,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		}
 
 		// Set values for direct access to avoid deeply nested references
-		tarotCalculationOpts.VaultPendingRewardValue = GetVaultPendingReward(tarotCalculationOpts.VaultPendingReward.Value, tarotOpts.RewardRate, blockTime, gaugeBalance.Value, gaugeTotalSupply.Value)
+		tarotCalculationOpts.VaultPendingRewardValue = GetVaultPendingReward(tarotCalculationOpts.VaultPendingReward.Value, rewardRate, blockTime, gaugeBalance.Value, gaugeTotalSupply.Value)
 		tarotCalculationOpts.BaseFeeValue = tarotCalculationOpts.BaseFeePerGas.Value
 		tarotCalculationOpts.EstimateGasLimitValue = tarotCalculationOpts.EstimateGasLimit.Value
 		tarotCalculationOpts.PriorityFeeValue = tarotCalculationOpts.PriorityFee.Value
@@ -278,12 +296,13 @@ func ComputeReward(vaultPendingReward *big.Int, reinvestBounty *big.Int) *big.In
 
 // GetVaultPendingReward predicts the next earned reward based on last mined block values
 func GetVaultPendingReward(
-	lastEarned *big.Int, // earned(account) from last mined block
-	rewardRate *big.Int, // tokens emitted per second
+	lastEarned *big.Int,   // earned(account) from last mined block
+	rewardRate *big.Int,   // tokens emitted per second
 	expectedSeconds int64, // estimated seconds until your tx is mined
-	balanceOf *big.Int, // contract LP token balance
-	totalSupply *big.Int, // total LP supply in gauge
+	balanceOf *big.Int,    // contract LP token balance
+	totalSupply *big.Int,  // total LP supply in gauge
 ) *big.Int {
+	log.Debug().Str("earned", lastEarned.String()).Str("rewardRate", rewardRate.String()).Str("totalSupply", totalSupply.String()).Str("balanceOf", balanceOf.String()).Int64("seconds", expectedSeconds).Msg("")
 	rewardRateTimesSeconds := new(big.Int).Mul(rewardRate, big.NewInt(expectedSeconds))
 	userRewardPortion := new(big.Int).Mul(rewardRateTimesSeconds, balanceOf)
 	additionalReward := new(big.Int).Div(userRewardPortion, totalSupply)
@@ -364,5 +383,45 @@ func waitTransaction(ethClient *ethclient.Client, ctx context.Context, tx *types
 	} else {
 		log.Error().Err(err).Str("chain", string(chain)).Msg("Failed to send transaction on Tarot")
 		time.Sleep(utils.RetryErrorSleep)
+	}
+}
+
+// startRateRewardFetcher blocks, polling rateReward every interval
+func startRateRewardFetcher(
+	ctx context.Context,
+	contract *bind.BoundContract,
+	contractFunction string,
+	callOpts *bind.CallOpts,
+	interval time.Duration,
+	rateCh chan<- *big.Int,
+) {
+	// get rate reward now
+	if rate, err := web3.EthCall(contract, contractFunction, callOpts); err == nil {
+		select {
+		case rateCh <- rate:
+		default:
+		}
+	} else {
+		log.Error().Err(err).Msg("initial rateReward fetch failed")
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			rate, err := web3.EthCall(contract, contractFunction, callOpts)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to fetch rateReward")
+				continue
+			}
+			select {
+			case rateCh <- rate:
+			default:
+			}
+		}
 	}
 }

@@ -65,7 +65,6 @@ func main() {
 	if err != nil || err2 != nil {
 		log.Fatal().Err(err).Msg("Error building eth client")
 	}
-	log.Info().Str("chain", string(chain)).Msg("Successfully built eth client")
 
 	poolOpts, poolErr := getPoolOpts(chain, protocol, poolID)
 	if poolErr != nil {
