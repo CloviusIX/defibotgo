@@ -21,4 +21,5 @@ const (
 const (
 	FbombCbbtc Pool = "FBOMB_CBBTC"
 	UsdcAero   Pool = "USDC_AERO"
+	WethTarot  Pool = "WETH_TAROT"
 )

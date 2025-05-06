@@ -32,12 +32,14 @@ var validProtocols = map[models.Protocol]bool{
 var validPools = map[models.Pool]bool{
 	models.FbombCbbtc: true,
 	models.UsdcAero:   true,
+	models.WethTarot:  true,
 }
 
 var poolRegistry = map[string]map[string]map[string]models.TarotOpts{
 	string(models.Base): {
 		string(models.Tarot): {
-			string(models.UsdcAero): protocolconfig.TarotBaseUsdcAero,
+			string(models.UsdcAero):  protocolconfig.TarotBaseUsdcAero,
+			string(models.WethTarot): protocolconfig.TarotBaseWethTarot,
 		},
 		string(models.Impermax): {
 			string(models.FbombCbbtc): protocolconfig.ImpermaxBaseSTKDUNIV2,
@@ -47,6 +49,7 @@ var poolRegistry = map[string]map[string]map[string]models.TarotOpts{
 
 var walletRegistry = map[string]string{
 	strings.ToUpper(config.GetSecret(config.WalletTarotAddressOne)):    config.GetSecret(config.WalletTarotKeyOne),
+	strings.ToUpper(config.GetSecret(config.WalletTarotAddressTwo)):    config.GetSecret(config.WalletTarotKeyTwo),
 	strings.ToUpper(config.GetSecret(config.WalletImpermaxAddressOne)): config.GetSecret(config.WalletImpermaxKeyOne),
 }
 
@@ -57,7 +60,6 @@ func main() {
 
 	// Get command args to build the pool opts
 	chain, protocol, poolID := getCmdArgs()
-	log.Info().Str("chain", string(chain)).Msgf("Running on %s on %s %s", string(protocol), string(chain), string(poolID))
 
 	ethClient, err := web3.BuildWeb3Client(chain, true)
 	ethClientWriter, err2 := web3.BuildWeb3Client(chain, false)
@@ -75,7 +77,8 @@ func main() {
 		log.Fatal().Msg("pool options sender is null")
 	}
 
-	walletPrivateKey := walletRegistry[strings.ToUpper(poolOpts.Sender.Hex())]
+	senderAddress := strings.ToUpper(poolOpts.Sender.Hex())
+	walletPrivateKey := walletRegistry[senderAddress]
 
 	if walletPrivateKey == "" {
 		log.Fatal().Msg("wallet test private key not found")
@@ -86,7 +89,6 @@ func main() {
 		log.Fatal().Err(err).Msg("wallet private key error")
 	}
 
-	log.Info().Msgf("Running %s ...", string(protocol))
 	blockNumber, err := ethClient.BlockNumber(rootCtx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error getting block number")
@@ -109,7 +111,7 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	log.Info().Msgf("Run at block %v", blockNumber)
+	log.Info().Uint64("block number", blockNumber).Str("wallet address", senderAddress).Str("chain", string(chain)).Msgf("Running on %s on %s %s", string(protocol), string(chain), string(poolID))
 	tarot.Run(rootCtx, ethClient, ethClientWriter, &poolOpts, walletPrivateKeyCiph)
 }
 

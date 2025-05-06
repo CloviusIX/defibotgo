@@ -21,6 +21,20 @@ var TarotBaseUsdcAero = models.TarotOpts{
 	ContractGasPriceOracle:  BaseGasPriceOracleAddress,
 }
 
+var TarotBaseWethTarot = models.TarotOpts{
+	ReinvestBounty:          big.NewInt(ReinvestBounty),
+	PriorityFee:             big.NewInt(56780),
+	RewardRate:              big.NewInt(66885542988906833), // from gauge contract
+	ProfitableThreshold:     -6,
+	GasUsedDefault:          856360,
+	ExtraPriorityFeePercent: [2]int{5, 10},
+	Chain:                   models.Base,
+	Sender:                  common.HexToAddress(config.GetSecret(config.WalletTarotAddressTwo)),
+	ContractLender:          common.HexToAddress("0xb556ee2761F5D2887b8f35a7ddA367aBd20503bf"),
+	ContractGauge:           common.HexToAddress("0xa81dac2e9caa218Fcd039D7CEdEB7847cf362213"),
+	ContractGasPriceOracle:  BaseGasPriceOracleAddress,
+}
+
 var TarotOptimismUsdcTarot = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
 	PriorityFee:             big.NewInt(56780),

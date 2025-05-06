@@ -296,11 +296,11 @@ func ComputeReward(vaultPendingReward *big.Int, reinvestBounty *big.Int) *big.In
 
 // GetVaultPendingReward predicts the next earned reward based on last mined block values
 func GetVaultPendingReward(
-	lastEarned *big.Int,   // earned(account) from last mined block
-	rewardRate *big.Int,   // tokens emitted per second
+	lastEarned *big.Int, // earned(account) from last mined block
+	rewardRate *big.Int, // tokens emitted per second
 	expectedSeconds int64, // estimated seconds until your tx is mined
-	balanceOf *big.Int,    // contract LP token balance
-	totalSupply *big.Int,  // total LP supply in gauge
+	balanceOf *big.Int, // contract LP token balance
+	totalSupply *big.Int, // total LP supply in gauge
 ) *big.Int {
 	log.Debug().Str("earned", lastEarned.String()).Str("rewardRate", rewardRate.String()).Str("totalSupply", totalSupply.String()).Str("balanceOf", balanceOf.String()).Int64("seconds", expectedSeconds).Msg("")
 	rewardRateTimesSeconds := new(big.Int).Mul(rewardRate, big.NewInt(expectedSeconds))
