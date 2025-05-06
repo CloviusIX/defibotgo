@@ -88,6 +88,29 @@ func main() {
 	}
 
 	log.Info().Msgf("Running %s ...", string(protocol))
+	blockNumber, err := ethClient.BlockNumber(rootCtx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error getting block number")
+	}
+
+	startBlock := blockNumber
+	log.Debug().Msgf("Start at %v", blockNumber)
+
+	for {
+		currentBlock, err := ethClient.BlockNumber(rootCtx)
+		if err != nil {
+			log.Error().Err(err).Msg("Error getting block number in loop")
+			continue
+		}
+
+		if currentBlock > startBlock {
+			blockNumber = currentBlock
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	log.Info().Msgf("Run at block %v", blockNumber)
 	tarot.Run(rootCtx, ethClient, ethClientWriter, &poolOpts, walletPrivateKeyCiph)
 }
 
