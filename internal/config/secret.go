@@ -19,6 +19,8 @@ const (
 	WalletTarotAddressOne
 	WalletTarotAddressTwo
 	WalletTarotKeyTwo
+	WalletTarotAddressThree
+	WalletTarotKeyThree
 	WalletTestPrivateKey
 	WalletImpermaxKeyOne
 	WalletImpermaxAddressOne
@@ -54,6 +56,8 @@ func loadSecrets() {
 			WalletTarotAddressOne:    getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_ONE"),
 			WalletTarotKeyTwo:        getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_TWO"),
 			WalletTarotAddressTwo:    getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_TWO"),
+			WalletTarotAddressThree:  getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_TAROT_THREE"),
+			WalletTarotKeyThree:      getEnvOrFatal("ACCOUNT_PRIVATE_KEY_TAROT_THREE"),
 			WalletImpermaxKeyOne:     getEnvOrFatal("ACCOUNT_PRIVATE_KEY_IMPERMAX_ONE"),
 			WalletImpermaxAddressOne: getEnvOrFatal("ACCOUNT_SENDER_ADDRESS_IMPERMAX_ONE"),
 		}

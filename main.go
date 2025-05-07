@@ -33,6 +33,7 @@ var validPools = map[models.Pool]bool{
 	models.FbombCbbtc: true,
 	models.UsdcAero:   true,
 	models.WethTarot:  true,
+	models.AeroTarot:  true,
 }
 
 var poolRegistry = map[string]map[string]map[string]models.TarotOpts{
@@ -40,6 +41,7 @@ var poolRegistry = map[string]map[string]map[string]models.TarotOpts{
 		string(models.Tarot): {
 			string(models.UsdcAero):  protocolconfig.TarotBaseUsdcAero,
 			string(models.WethTarot): protocolconfig.TarotBaseWethTarot,
+			string(models.AeroTarot): protocolconfig.TarotBaseAeroTarot,
 		},
 		string(models.Impermax): {
 			string(models.FbombCbbtc): protocolconfig.ImpermaxBaseSTKDUNIV2,
@@ -50,6 +52,7 @@ var poolRegistry = map[string]map[string]map[string]models.TarotOpts{
 var walletRegistry = map[string]string{
 	strings.ToUpper(config.GetSecret(config.WalletTarotAddressOne)):    config.GetSecret(config.WalletTarotKeyOne),
 	strings.ToUpper(config.GetSecret(config.WalletTarotAddressTwo)):    config.GetSecret(config.WalletTarotKeyTwo),
+	strings.ToUpper(config.GetSecret(config.WalletTarotAddressThree)):  config.GetSecret(config.WalletTarotKeyThree),
 	strings.ToUpper(config.GetSecret(config.WalletImpermaxAddressOne)): config.GetSecret(config.WalletImpermaxKeyOne),
 }
 
