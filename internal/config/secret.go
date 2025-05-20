@@ -74,16 +74,16 @@ func loadEnvFile(env string) {
 	case "development":
 		envFile = ".env"
 	case "production":
-		log.Info().Msg("Production environment detected; skipping .env file loading.")
+		log.Debug().Msg("Production environment detected; skipping .env file loading.")
 		return
 	default:
-		log.Info().Str("env file", env).Msg("Unknown APP_ENV. Using .env by default.")
+		log.Debug().Str("env file", env).Msg("Unknown APP_ENV. Using .env by default.")
 		envFile = ".env"
 	}
 
 	// Load the selected .env file
 	if err := godotenv.Load(envFile); err != nil {
-		log.Info().Str("env file", envFile).Msg("env file not found or could not be loaded. Proceeding with environment variables.")
+		log.Debug().Str("env file", envFile).Msg("env file not found or could not be loaded. Proceeding with environment variables.")
 	}
 }
 

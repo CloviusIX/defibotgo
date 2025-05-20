@@ -41,7 +41,6 @@ type ProtocolCalculationOpts struct {
 var (
 	reinvestFunctionName    = "reinvest"
 	zeroValue               = big.NewInt(0)
-	transactionsBlockRange  = big.NewInt(50)
 	gasLimitExtraPercent    = uint64(30)
 	gasLimitUsedExpectedMin = uint64(100000)
 	blockTime               = int64(2)
@@ -115,7 +114,7 @@ func Run(rootCtx context.Context, ethClient *ethclient.Client, ethClientWriter *
 		go web3Async.EthCallAsync(contractGauge, "earned", callOpts, vaultPendingRewardChan, &wg, tarotOpts.ContractLender)
 		go web3Async.GetBaseFeePerGasAsync(ethClient, callOpts.BlockNumber, cache, "1", baseFeePerGasChan, &wg)
 		go web3Async.EstimateGasAsync(ethClient, callMsg, cache, "2", estimateGasChan, &wg)
-		go web3Async.GetPriorityFeeAsync(ethClient, tarotOpts.Sender, tarotOpts.ContractLender, transactionsBlockRange, callOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
+		go web3Async.GetPriorityFeeAsync(ethClient, tarotOpts.Sender, tarotOpts.ContractLender, tarotOpts.BlockRange, callOpts.BlockNumber, cache, "3", priorityFeeChan, &wg)
 		go asyncservices.GetPoolPriceAsync(tarotOpts.Chain, cache, "4", rewardPairValueChan, &wg)
 
 		go web3Async.EthCallWithCacheAsync(contractGauge, "balanceOf", callOpts, cache, "5", balanceChan, &wg, tarotOpts.ContractLender)
@@ -230,14 +229,14 @@ func GetL2TransactionGasFees(
 		// Use the highest priority fee for the transaction
 		newPriorityFee_ = tarotOpts.PriorityFee
 	}
-
 	newPriorityFee := utils.IncreaseAmount(newPriorityFee_, priorityFeeExtraPercent)
+
 	rewardToken := ComputeReward(tarotCalculationOpts.VaultPendingRewardValue, tarotOpts.ReinvestBounty)
 	rewardEth := utils.ConvertToEth(rewardToken, tarotCalculationOpts.RewardPairValue)
 
 	gasOpts := web3.BuildTransactionFeeArgs(tarotCalculationOpts.BaseFeeValue, newPriorityFee, tarotCalculationOpts.EstimateGasLimitValue)
 	diff := utils.ComputeDifference(rewardEth, gasOpts.TransactionFee)
-	isWorth := diff > -10
+	isWorth := diff > -11
 
 	log.Info().Str("vault pending reward", tarotCalculationOpts.VaultPendingRewardValue.String()).
 		Str("reward erc20", rewardToken.String()).
@@ -296,11 +295,11 @@ func ComputeReward(vaultPendingReward *big.Int, reinvestBounty *big.Int) *big.In
 
 // GetVaultPendingReward predicts the next earned reward based on last mined block values
 func GetVaultPendingReward(
-	lastEarned *big.Int, // earned(account) from last mined block
-	rewardRate *big.Int, // tokens emitted per second
+	lastEarned *big.Int,   // earned(account) from last mined block
+	rewardRate *big.Int,   // tokens emitted per second
 	expectedSeconds int64, // estimated seconds until your tx is mined
-	balanceOf *big.Int, // contract LP token balance
-	totalSupply *big.Int, // total LP supply in gauge
+	balanceOf *big.Int,    // contract LP token balance
+	totalSupply *big.Int,  // total LP supply in gauge
 ) *big.Int {
 	log.Debug().Str("earned", lastEarned.String()).Str("rewardRate", rewardRate.String()).Str("totalSupply", totalSupply.String()).Str("balanceOf", balanceOf.String()).Int64("seconds", expectedSeconds).Msg("")
 	rewardRateTimesSeconds := new(big.Int).Mul(rewardRate, big.NewInt(expectedSeconds))
