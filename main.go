@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"defibotgo/internal/config"
+	"defibotgo/internal/logging"
 	"defibotgo/internal/models"
 	protocolconfig "defibotgo/internal/protocols/config"
 	"defibotgo/internal/protocols/tarot"
@@ -10,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
@@ -57,7 +57,7 @@ var walletRegistry = map[string]string{
 }
 
 func main() {
-	zerolog.TimeFieldFormat = time.DateTime
+	logging.Init()
 	rootCtx, rootCancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer rootCancel()
 

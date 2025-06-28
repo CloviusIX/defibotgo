@@ -9,11 +9,12 @@ import (
 
 var TarotBaseUsdcAero = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
-	PriorityFee:             big.NewInt(56780),
+	PriorityFee:             big.NewInt(12368),
 	RewardRate:              big.NewInt(1059238100440517689), // from gauge contract
-	ProfitableThreshold:     -6,
+	BlockRange:              big.NewInt(10),
+	ProfitableThreshold:     -3,
 	GasUsedDefault:          426244,
-	ExtraPriorityFeePercent: [2]int{8, 20},
+	ExtraPriorityFeePercent: [2]int{2, 7},
 	Chain:                   models.Base,
 	Sender:                  common.HexToAddress(config.GetSecret(config.WalletTarotAddressOne)),
 	ContractLender:          common.HexToAddress("0x042c37762d1d126bc61eac2f5ceb7a96318f5db9"),
@@ -23,11 +24,12 @@ var TarotBaseUsdcAero = models.TarotOpts{
 
 var TarotBaseWethTarot = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
-	PriorityFee:             big.NewInt(56780),
+	PriorityFee:             big.NewInt(10223),
 	RewardRate:              big.NewInt(66885542988906833), // from gauge contract
+	BlockRange:              big.NewInt(20),
 	ProfitableThreshold:     -6,
-	GasUsedDefault:          856360,
-	ExtraPriorityFeePercent: [2]int{5, 10},
+	GasUsedDefault:          853922,
+	ExtraPriorityFeePercent: [2]int{2, 7},
 	Chain:                   models.Base,
 	Sender:                  common.HexToAddress(config.GetSecret(config.WalletTarotAddressTwo)),
 	ContractLender:          common.HexToAddress("0xb556ee2761F5D2887b8f35a7ddA367aBd20503bf"),
@@ -37,11 +39,12 @@ var TarotBaseWethTarot = models.TarotOpts{
 
 var TarotBaseAeroTarot = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
-	PriorityFee:             big.NewInt(56780),
+	PriorityFee:             big.NewInt(52368),
 	RewardRate:              big.NewInt(99537395303616726), // from gauge contract
+	BlockRange:              big.NewInt(10),
 	ProfitableThreshold:     -6,
 	GasUsedDefault:          407294,
-	ExtraPriorityFeePercent: [2]int{5, 10},
+	ExtraPriorityFeePercent: [2]int{2, 5},
 	Chain:                   models.Base,
 	Sender:                  common.HexToAddress(config.GetSecret(config.WalletTarotAddressThree)),
 	ContractLender:          common.HexToAddress("0x776236aeAD8A58AC9eC3CF214CDa3c6335f46B2d"),
@@ -53,6 +56,7 @@ var TarotOptimismUsdcTarot = models.TarotOpts{
 	ReinvestBounty:          big.NewInt(ReinvestBounty),
 	PriorityFee:             big.NewInt(56780),
 	RewardRate:              big.NewInt(1059238100440517689),
+	BlockRange:              big.NewInt(10),
 	ProfitableThreshold:     -6,
 	GasUsedDefault:          426244,
 	ExtraPriorityFeePercent: [2]int{8, 20},
