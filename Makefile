@@ -32,6 +32,6 @@ docker/build:
 
 # update -chain flag as you want
 docker/run:
-	docker run -d --env-file .env --rm --name $(DOCKER_IMAGE_NAME) $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) -chain=base -protocol=tarot -pool=USDC_AERO
+	docker run -d --env-file .env --rm --name $(DOCKER_IMAGE_NAME) $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) -chain=$(CHAIN) -protocol=$(PROTOCOL) -pool=$(POOL)
 
 .PHONY: $(shell grep -E '^([a-zA-Z_-]|\/)+:' $(MAKEFILE_LIST) | awk -F':' '{print $$2}' | sed 's/:.*//')
