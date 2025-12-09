@@ -129,6 +129,6 @@ make docker/run CHAIN=<chain_name> PROTOCOL=<protocol_name> POOL=<pool_name>
 - Send transactions through private relays (e.g. Flashbots) to stay out of the public mempool and avoid being copied or frontrun.
 
 
-## 📝 License
+## 📝 Disclaimer
 
 This project is for educational purposes. Use at your own risk.
